@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bhai Thik Kor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <span class="logo-icon">⚡</span>
+        <h1 class="logo-text">Bhai Thik Kor</h1>
+      </div>
+      <button id="btn-guided" class="btn-mode" title="Guided Mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Guide Me
+      </button>
+    </header>
+
+    <!-- Input Section -->
+    <section id="section-input" class="section">
+      <textarea
+        id="input-prompt"
+        class="input-prompt"
+        placeholder="Type your rough idea here..."
+        rows="4"
+        maxlength="4000"
+      ></textarea>
+      <div class="input-footer">
+        <span id="char-count" class="char-count">0 / 4000</span>
+        <button id="btn-improve" class="btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+          Improve
+        </button>
+      </div>
+    </section>
+
+    <!-- Loading State -->
+    <section id="section-loading" class="section hidden">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Improving your prompt...</p>
+      </div>
+    </section>
+
+    <!-- Result Section -->
+    <section id="section-result" class="section hidden">
+      <div class="result-label">Optimized Prompt</div>
+      <div id="result-prompt" class="result-prompt"></div>
+
+      <div class="result-actions">
+        <button id="btn-copy" class="btn-action btn-action-primary" title="Copy to clipboard">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy
+        </button>
+        <button id="btn-replace" class="btn-action" title="Replace active text">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Replace
+        </button>
+        <button id="btn-insert" class="btn-action" title="Insert below active text">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <polyline points="19 12 12 19 5 12"/>
+          </svg>
+          Insert
+        </button>
+        <button id="btn-open-website" class="btn-action" title="Open full Bhai Thik Kor">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Website
+        </button>
+      </div>
+
+      <!-- Model Recommendations -->
+      <div id="routing-section" class="routing-section">
+        <div class="routing-label">Recommended Models</div>
+        <div id="routing-cards" class="routing-cards"></div>
+      </div>
+
+      <div class="result-bottom-actions">
+        <button id="btn-new" class="btn-secondary">New Prompt</button>
+      </div>
+    </section>
+
+    <!-- Guided Mode Section -->
+    <section id="section-guided" class="section hidden">
+      <div class="guided-header">
+        <button id="btn-back-guided" class="btn-back" title="Back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <span class="guided-title">Guide Me</span>
+      </div>
+      <p class="guided-description">Answer a few questions to sharpen your prompt.</p>
+      <div id="guided-questions" class="guided-questions"></div>
+      <button id="btn-guided-submit" class="btn-primary guided-submit hidden">
+        Generate Prompt
+      </button>
+    </section>
+
+    <!-- Error State -->
+    <section id="section-error" class="section hidden">
+      <div class="error-container">
+        <div class="error-icon">⚠</div>
+        <p id="error-message" class="error-text"></p>
+        <button id="btn-retry" class="btn-secondary">Try Again</button>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span id="rate-limit-info" class="rate-limit-info"></span>
+      <span class="privacy-note">Only sends text when you ask.</span>
+    </footer>
+  </div>
+
+  <script type="module" src="./index.ts"></script>
+</body>
+</html>
