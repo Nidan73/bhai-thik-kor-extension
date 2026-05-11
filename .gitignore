@@ -1,0 +1,5 @@
+PROJECT_PLAN.md
+node_modules/
+dist/
+.env*
+!.env.example
