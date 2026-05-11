@@ -68,7 +68,7 @@ function getSelectedText(): { text: string; fieldType: FieldType; isBlocked: boo
 
   if (selectedText) {
     const anchorNode = selection?.anchorNode;
-    const el = anchorNode instanceof HTMLElement ? anchorNode : anchorNode?.parentElement;
+    const el = anchorNode instanceof HTMLElement ? anchorNode : anchorNode?.parentElement ?? null;
     const fieldType = getFieldType(el);
     const isBlocked = el ? isFieldBlocked(el) : false;
     return { text: selectedText, fieldType, isBlocked };
