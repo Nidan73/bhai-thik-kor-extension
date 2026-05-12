@@ -335,6 +335,7 @@ function buildAttachmentClarifications(
   const attachmentNoun = attachmentContext.count === 1 ? 'attachment' : 'attachments';
   const summary = attachmentContext.summary || `${attachmentContext.count} attached item(s)`;
   const selectedTask = clipForClarification(prompt);
+  const shortImageEditHint = buildShortImageEditHint(prompt, attachmentContext);
 
   return [
     {
@@ -342,13 +343,43 @@ function buildAttachmentClarifications(
       answer: [
         `The current composer has ${summary}.`,
         `Preserve the selected task exactly: "${selectedTask}".`,
+        shortImageEditHint,
         `Mention the attached ${attachmentNoun} only as reference/context for that same task.`,
         'Do not turn the request into image analysis, comparison, recommendations, extraction, or a report unless the selected text explicitly asks for that.',
         'Do not claim the extension inspected the attachment contents.',
         'For vague references like "this", "this section", or "the image", point the final prompt at the attached item while keeping the original deliverable.',
-      ].join(' '),
+      ].filter(Boolean).join(' '),
     },
   ];
+}
+
+function buildShortImageEditHint(
+  prompt: string,
+  attachmentContext: AttachmentContext,
+): string {
+  if (!attachmentContext.kinds.includes('image')) return '';
+  if (!looksLikeShortImageEditCommand(prompt)) return '';
+
+  return [
+    'This is a short command referring to the attached image itself.',
+    'Interpret "it" or "this" as the attached image, not as text inside the image.',
+    'Generate an image-improvement/editing prompt: improve visual quality, clarity, lighting, composition, sharpness, and overall appeal while preserving the real scene and important details.',
+    'Do not make the role a copy editor, report writer, OCR extractor, or text improver.',
+  ].join(' ');
+}
+
+function looksLikeShortImageEditCommand(prompt: string): boolean {
+  const normalized = prompt.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!normalized) return false;
+
+  const words = normalized.split(' ');
+  if (words.length > 8) return false;
+  if (/\b(text|copy|caption|headline|section|paragraph|report|analyze|analysis|describe|summarize|extract|ocr|read|write|rewrite|grammar)\b/.test(normalized)) {
+    return false;
+  }
+
+  return /\b(improve|enhance|fix|edit|polish|retouch|restore|sharpen|upscale|clean|beautify)\b/.test(normalized) ||
+    /\bmake (it|this|image|photo|picture) (better|nicer|cleaner|sharper|professional)\b/.test(normalized);
 }
 
 function clipForClarification(text: string): string {

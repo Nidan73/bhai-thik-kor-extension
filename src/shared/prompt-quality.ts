@@ -104,5 +104,5 @@ function getDomainHint(prompt: string): string {
     return 'For analysis tasks, include scope, method, evidence expectations, structure, and final deliverable format.';
   }
 
-  return 'Choose the most relevant expert role and output structure from the user text.';
+  return 'Choose the expert role and output structure from the explicit user text and any clarifications. Do not infer writing, report, OCR, or analysis work unless the user asks for it.';
 }
