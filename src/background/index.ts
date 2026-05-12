@@ -4,14 +4,44 @@
  * Central hub for the extension:
  * - Registers context menus
  * - Handles keyboard shortcuts
- * - Routes messages between popup and content scripts
+ * - Routes messages between popup/content scripts
  * - Makes API calls to the Bhai Thik Kor backend
  */
 
-import { onMessage, sendToActiveTab } from '@/shared/messages';
-import { apiGenerate, apiClarify, apiRefine } from '@/shared/api-client';
+import { onMessage } from '@/shared/messages';
+import { ApiClientError, apiGenerate, apiClarify, apiRefine } from '@/shared/api-client';
 import { PROMPT_MIN_CHARS } from '@/shared/constants';
-import type { Message, Clarification } from '@/shared/types';
+import type {
+  Clarification,
+  FieldType,
+  ImproveSource,
+  Message,
+} from '@/shared/types';
+
+type SelectedTextPayload = {
+  text: string;
+  fieldType: FieldType;
+  isBlocked: boolean;
+};
+
+const PROTECTED_FIELD_MESSAGE =
+  'This looks like a protected field or page. Bhai Thik Kor will not send it.';
+
+const SENSITIVE_TAB_PATTERNS = [
+  /\/login/i,
+  /\/signin/i,
+  /\/signup/i,
+  /\/register/i,
+  /\/payment/i,
+  /\/checkout/i,
+  /\/billing/i,
+  /\/bank/i,
+  /\/transfer/i,
+  /\/medical/i,
+  /\/health/i,
+  /\/patient/i,
+  /\/gov/i,
+];
 
 // ─── Context Menu Setup ─────────────────────────────────────────────────────────
 
@@ -25,10 +55,20 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'improve-with-btk') return;
-  if (!info.selectionText?.trim()) return;
   if (!tab?.id) return;
 
-  const text = info.selectionText.trim();
+  if (isSensitiveTabUrl(tab.url)) {
+    sendImproveErrorToTab(tab.id, PROTECTED_FIELD_MESSAGE, info.selectionText, 'context-menu');
+    return;
+  }
+
+  const captured = await getSelectedTextFromTab(tab.id);
+  if (captured?.isBlocked) {
+    sendImproveErrorToTab(tab.id, PROTECTED_FIELD_MESSAGE, captured.text, 'context-menu');
+    return;
+  }
+
+  const text = (captured?.text || info.selectionText || '').trim();
   await handleImproveRequest(text, 'context-menu', tab.id);
 });
 
@@ -40,27 +80,20 @@ chrome.commands.onCommand.addListener(async (command) => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
 
-  // Inject content script if not already present, then request selected text
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ['content.js'],
-    });
-  } catch {
-    // Content script may already be injected, ignore
-  }
-
-  try {
-    const response = await sendToActiveTab<{ text: string; fieldType: string; isBlocked: boolean }>({
-      type: 'GET_SELECTED_TEXT',
-    });
-
-    if (response?.text?.trim()) {
-      await handleImproveRequest(response.text.trim(), 'shortcut', tab.id);
+  const captured = await getSelectedTextFromTab(tab.id);
+  if (!captured?.text.trim()) {
+    if (tab.id) {
+      sendImproveErrorToTab(tab.id, 'Focus a text box first, then use the shortcut.', '', 'shortcut');
     }
-  } catch (err) {
-    console.warn('Could not get selected text:', err);
+    return;
   }
+
+  if (captured.isBlocked || isSensitiveTabUrl(tab.url)) {
+    sendImproveErrorToTab(tab.id, PROTECTED_FIELD_MESSAGE, captured.text, 'shortcut');
+    return;
+  }
+
+  await handleImproveRequest(captured.text.trim(), 'shortcut', tab.id);
 });
 
 // ─── Message Router ─────────────────────────────────────────────────────────────
@@ -68,8 +101,8 @@ chrome.commands.onCommand.addListener(async (command) => {
 onMessage((message: Message, _sender, sendResponse) => {
   switch (message.type) {
     case 'IMPROVE_REQUEST':
-      handleImproveFromPopup(message.payload.text, sendResponse);
-      return true; // async response
+      handleImproveFromMessage(message.payload.text, message.payload.source, sendResponse);
+      return true;
 
     case 'CLARIFY_REQUEST':
       handleClarifyFromPopup(message.payload.text, sendResponse);
@@ -95,41 +128,60 @@ onMessage((message: Message, _sender, sendResponse) => {
 
 // ─── Handlers ───────────────────────────────────────────────────────────────────
 
-async function handleImproveFromPopup(
+async function handleImproveFromMessage(
   text: string,
+  source: ImproveSource,
   sendResponse: (response: unknown) => void,
 ) {
-  if (text.length < PROMPT_MIN_CHARS) {
-    sendResponse({ type: 'IMPROVE_ERROR', payload: { error: 'Add more detail to your prompt.' } });
+  const trimmed = text.trim();
+
+  if (trimmed.length < PROMPT_MIN_CHARS) {
+    sendResponse({
+      type: 'IMPROVE_ERROR',
+      payload: { error: 'Add more detail to your prompt.', originalText: trimmed, source },
+    });
     return;
   }
 
   try {
-    const { result, rateLimit } = await apiGenerate(text);
-    sendResponse({ type: 'IMPROVE_RESPONSE', payload: { result, rateLimit } });
+    const { result, rateLimit } = await apiGenerate(trimmed);
+    sendResponse({
+      type: 'IMPROVE_RESPONSE',
+      payload: { result, rateLimit, originalText: trimmed, source },
+    });
   } catch (err) {
-    const error = err instanceof Error ? err.message : 'Failed to improve prompt.';
-    sendResponse({ type: 'IMPROVE_ERROR', payload: { error } });
+    sendResponse({
+      type: 'IMPROVE_ERROR',
+      payload: toImproveErrorPayload(err, 'Failed to improve prompt.', trimmed, source),
+    });
   }
 }
 
-async function handleImproveRequest(text: string, source: string, tabId: number) {
-  if (text.length < PROMPT_MIN_CHARS) return;
+async function handleImproveRequest(text: string, source: ImproveSource, tabId: number) {
+  const trimmed = text.trim();
+
+  if (trimmed.length < PROMPT_MIN_CHARS) {
+    sendImproveErrorToTab(tabId, 'Select or write a little more text first.', trimmed, source);
+    return;
+  }
+
+  chrome.tabs.sendMessage(tabId, {
+    type: 'IMPROVE_STARTED',
+    payload: { text: trimmed, source },
+  } satisfies Message).catch(() => undefined);
 
   try {
-    const { result, rateLimit } = await apiGenerate(text);
+    const { result, rateLimit } = await apiGenerate(trimmed);
 
-    // Send result back to content script for overlay display
     chrome.tabs.sendMessage(tabId, {
       type: 'IMPROVE_RESPONSE',
-      payload: { result, rateLimit },
-    });
+      payload: { result, rateLimit, originalText: trimmed, source },
+    } satisfies Message).catch(() => undefined);
   } catch (err) {
-    const error = err instanceof Error ? err.message : 'Failed to improve prompt.';
     chrome.tabs.sendMessage(tabId, {
       type: 'IMPROVE_ERROR',
-      payload: { error },
-    });
+      payload: toImproveErrorPayload(err, 'Failed to improve prompt.', trimmed, source),
+    } satisfies Message).catch(() => undefined);
   }
 }
 
@@ -151,12 +203,19 @@ async function handleGenerateWithClarifications(
   clarifications: Clarification[],
   sendResponse: (response: unknown) => void,
 ) {
+  const trimmed = text.trim();
+
   try {
-    const { result, rateLimit } = await apiGenerate(text, clarifications);
-    sendResponse({ type: 'IMPROVE_RESPONSE', payload: { result, rateLimit } });
+    const { result, rateLimit } = await apiGenerate(trimmed, clarifications);
+    sendResponse({
+      type: 'IMPROVE_RESPONSE',
+      payload: { result, rateLimit, originalText: trimmed, source: 'popup' },
+    });
   } catch (err) {
-    const error = err instanceof Error ? err.message : 'Failed to improve prompt.';
-    sendResponse({ type: 'IMPROVE_ERROR', payload: { error } });
+    sendResponse({
+      type: 'IMPROVE_ERROR',
+      payload: toImproveErrorPayload(err, 'Failed to improve prompt.', trimmed, 'popup'),
+    });
   }
 }
 
@@ -170,6 +229,75 @@ async function handleRefineFromPopup(
     sendResponse({ type: 'REFINE_RESPONSE', payload: { refinedPrompt } });
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Refinement unavailable.';
-    sendResponse({ type: 'REFINE_ERROR', payload: { error } });
+    const retryAfter = err instanceof ApiClientError ? err.retryAfter : undefined;
+    sendResponse({ type: 'REFINE_ERROR', payload: { error, retryAfter } });
   }
+}
+
+// ─── Tab Helpers ────────────────────────────────────────────────────────────────
+
+async function ensureContentScript(tabId: number): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js'],
+    });
+  } catch {
+    // Already injected, or the page does not allow content scripts.
+  }
+}
+
+async function getSelectedTextFromTab(tabId: number): Promise<SelectedTextPayload | null> {
+  const existing = await requestSelectedTextFromTab(tabId);
+  if (existing) return existing;
+
+  await ensureContentScript(tabId);
+  return requestSelectedTextFromTab(tabId);
+}
+
+async function requestSelectedTextFromTab(tabId: number): Promise<SelectedTextPayload | null> {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: 'GET_SELECTED_TEXT',
+    } satisfies Message);
+
+    if (response?.type === 'SELECTED_TEXT_RESULT') {
+      return response.payload;
+    }
+  } catch {
+    // The content script is unavailable on Chrome pages and some restricted URLs.
+  }
+
+  return null;
+}
+
+function sendImproveErrorToTab(
+  tabId: number,
+  error: string,
+  originalText: string | undefined,
+  source: ImproveSource,
+) {
+  chrome.tabs.sendMessage(tabId, {
+    type: 'IMPROVE_ERROR',
+    payload: { error, originalText, source },
+  } satisfies Message).catch(() => undefined);
+}
+
+function isSensitiveTabUrl(url?: string): boolean {
+  if (!url) return false;
+  return SENSITIVE_TAB_PATTERNS.some(pattern => pattern.test(url));
+}
+
+function toImproveErrorPayload(
+  err: unknown,
+  fallback: string,
+  originalText: string,
+  source: ImproveSource,
+) {
+  return {
+    error: err instanceof Error ? err.message : fallback,
+    retryAfter: err instanceof ApiClientError ? err.retryAfter : undefined,
+    originalText,
+    source,
+  };
 }

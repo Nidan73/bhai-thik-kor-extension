@@ -17,10 +17,17 @@
     "type": "module"
   },
   "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+B",
+        "mac": "MacCtrl+B"
+      },
+      "description": "Open Bhai Thik Kor"
+    },
     "improve-selection": {
       "suggested_key": {
-        "default": "Ctrl+Shift+B",
-        "mac": "Command+Shift+B"
+        "default": "Alt+I",
+        "mac": "MacCtrl+I"
       },
       "description": "Improve selected text or active input"
     }

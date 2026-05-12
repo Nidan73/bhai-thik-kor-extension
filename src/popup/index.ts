@@ -8,7 +8,12 @@
  * - Rate limit display
  */
 
-import { PROMPT_MAX_CHARS, PROMPT_MIN_CHARS, WEBSITE_URL } from '@/shared/constants';
+import {
+  buildWebsiteUrl,
+  PROMPT_MAX_CHARS,
+  PROMPT_MIN_CHARS,
+  REFINE_INSTRUCTION_MAX_CHARS,
+} from '@/shared/constants';
 import type {
   Message,
   GenerateResult,
@@ -39,6 +44,9 @@ const btnInsert = $<HTMLButtonElement>('btn-insert');
 const btnOpenWebsite = $<HTMLButtonElement>('btn-open-website');
 const btnNew = $<HTMLButtonElement>('btn-new');
 const routingCards = $<HTMLElement>('routing-cards');
+const actionStatus = $<HTMLElement>('action-status');
+const refineInput = $<HTMLInputElement>('refine-input');
+const btnRefine = $<HTMLButtonElement>('btn-refine');
 
 const guidedQuestions = $<HTMLElement>('guided-questions');
 const btnGuidedSubmit = $<HTMLButtonElement>('btn-guided-submit');
@@ -54,6 +62,7 @@ const rateLimitInfo = $<HTMLElement>('rate-limit-info');
 let currentResult: GenerateResult | null = null;
 let currentPromptText = '';
 let guidedAnswers: Map<string, string> = new Map();
+let actionStatusTimer: number | undefined;
 
 // ─── UI Helpers ─────────────────────────────────────────────────────────────────
 
@@ -76,6 +85,18 @@ function updateRateLimit(info?: RateLimitInfo) {
     // Store for persistence across popup opens
     chrome.storage.local.set({ lastRateLimit: info });
   }
+}
+
+function showActionStatus(message: string, tone: 'muted' | 'success' | 'error' = 'muted') {
+  window.clearTimeout(actionStatusTimer);
+  actionStatus.textContent = message;
+  actionStatus.style.color =
+    tone === 'success' ? 'var(--btk-success)' : tone === 'error' ? 'var(--btk-error)' : '';
+
+  actionStatusTimer = window.setTimeout(() => {
+    actionStatus.textContent = '';
+    actionStatus.style.color = '';
+  }, 2600);
 }
 
 // ─── Normal Mode ────────────────────────────────────────────────────────────────
@@ -111,6 +132,8 @@ async function handleImprove() {
 function showResult(result: GenerateResult) {
   resultPrompt.textContent = result.optimized_prompt;
   renderRoutingCards(result.routing);
+  refineInput.value = '';
+  actionStatus.textContent = '';
   showSection(sectionResult);
 }
 
@@ -129,25 +152,32 @@ function renderRoutingCards(routing: GenerateResult['routing']) {
 
     const card = document.createElement('div');
     card.className = 'routing-card';
-    card.innerHTML = `
-      <div class="routing-card-left">
-        <span class="routing-tier ${tier.key}">${tier.label}</span>
-        <span class="routing-model">${rec.model_name}</span>
-      </div>
-      <a class="routing-card-link" href="#" data-platform="${rec.platform_id}" title="${rec.reasoning}">
-        Try →
-      </a>
-    `;
 
-    // Link click opens platform URL (resolved from platform_id)
-    const link = card.querySelector('.routing-card-link') as HTMLAnchorElement;
+    const left = document.createElement('div');
+    left.className = 'routing-card-left';
+
+    const tierLabel = document.createElement('span');
+    tierLabel.className = `routing-tier ${tier.key}`;
+    tierLabel.textContent = tier.label;
+
+    const model = document.createElement('span');
+    model.className = 'routing-model';
+    model.textContent = rec.model_name;
+    left.append(tierLabel, model);
+
+    const link = document.createElement('a');
+    link.className = 'routing-card-link';
+    link.href = '#';
+    link.dataset.platform = rec.platform_id;
+    link.title = rec.reasoning;
+    link.textContent = 'Try →';
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      // The platform URL resolution happens on the website side
-      // For the extension, we just open the website with the prompt
-      chrome.tabs.create({ url: WEBSITE_URL });
+      const prompt = currentResult?.optimized_prompt || currentPromptText;
+      chrome.tabs.create({ url: buildWebsiteUrl(prompt, rec.platform_id) });
     });
 
+    card.append(left, link);
     routingCards.appendChild(card);
   }
 }
@@ -224,8 +254,10 @@ function renderGuidedQuestions(questions: ClarifyingQuestion[]) {
       if (customInput.value.trim()) {
         options.querySelectorAll('.guided-option').forEach(b => b.classList.remove('selected'));
         guidedAnswers.set(q.question, customInput.value.trim());
-        checkGuidedReady();
+      } else {
+        guidedAnswers.delete(q.question);
       }
+      checkGuidedReady();
     });
     container.appendChild(customInput);
 
@@ -237,6 +269,8 @@ function checkGuidedReady() {
   const allQuestions = guidedQuestions.querySelectorAll('.guided-question');
   if (guidedAnswers.size >= allQuestions.length) {
     btnGuidedSubmit.classList.remove('hidden');
+  } else {
+    btnGuidedSubmit.classList.add('hidden');
   }
 }
 
@@ -298,33 +332,100 @@ async function handleCopy() {
 async function handleReplace() {
   if (!currentResult) return;
 
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return;
+  const success = await sendActionToActiveTab({
+    type: 'REPLACE_TEXT',
+    payload: { text: currentResult.optimized_prompt },
+  } satisfies Message);
 
-    await chrome.tabs.sendMessage(tab.id, {
-      type: 'REPLACE_TEXT',
-      payload: { text: currentResult.optimized_prompt },
-    } satisfies Message);
-  } catch {
-    // Content script may not be injected — this is expected on some pages
-  }
+  showActionStatus(
+    success ? 'Replaced active field.' : 'Could not replace this page or field. Copy still works.',
+    success ? 'success' : 'error',
+  );
 }
 
 async function handleInsert() {
   if (!currentResult) return;
 
+  const success = await sendActionToActiveTab({
+    type: 'INSERT_BELOW',
+    payload: { text: currentResult.optimized_prompt },
+  } satisfies Message);
+
+  showActionStatus(
+    success ? 'Inserted below active text.' : 'Could not insert into this page or field. Copy still works.',
+    success ? 'success' : 'error',
+  );
+}
+
+async function sendActionToActiveTab(message: Message): Promise<boolean> {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return;
+    if (!tab?.id) return false;
 
-    await chrome.tabs.sendMessage(tab.id, {
-      type: 'INSERT_BELOW',
-      payload: { text: currentResult.optimized_prompt },
-    } satisfies Message);
+    let response = await chrome.tabs.sendMessage(tab.id, message).catch(() => undefined);
+
+    if (!response) {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js'],
+      }).catch(() => undefined);
+
+      response = await chrome.tabs.sendMessage(tab.id, message).catch(() => undefined);
+    }
+
+    return response?.type === 'ACTION_DONE' && Boolean(response.payload.success);
   } catch {
-    // Content script may not be injected
+    return false;
   }
+}
+
+async function handleRefine() {
+  if (!currentResult) return;
+
+  const instruction = refineInput.value.trim();
+  if (!instruction) {
+    refineInput.focus();
+    return;
+  }
+
+  if (instruction.length > REFINE_INSTRUCTION_MAX_CHARS) {
+    showActionStatus('Tweak instruction is too long.', 'error');
+    return;
+  }
+
+  btnRefine.disabled = true;
+  showActionStatus('Tweaking prompt...');
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'REFINE_REQUEST',
+      payload: {
+        currentPrompt: currentResult.optimized_prompt,
+        instruction,
+      },
+    } satisfies Message);
+
+    if (response?.type === 'REFINE_RESPONSE') {
+      currentResult = {
+        ...currentResult,
+        optimized_prompt: response.payload.refinedPrompt,
+      };
+      resultPrompt.textContent = response.payload.refinedPrompt;
+      refineInput.value = '';
+      showActionStatus('Prompt tweaked.', 'success');
+    } else if (response?.type === 'REFINE_ERROR') {
+      showActionStatus(response.payload.error, 'error');
+    }
+  } catch {
+    showActionStatus('Could not tweak the prompt. Try again.', 'error');
+  }
+
+  btnRefine.disabled = false;
+}
+
+function handleOpenWebsite() {
+  const prompt = currentResult?.optimized_prompt || currentPromptText || inputPrompt.value.trim();
+  chrome.tabs.create({ url: buildWebsiteUrl(prompt) });
 }
 
 // ─── Error Handling ─────────────────────────────────────────────────────────────
@@ -343,6 +444,8 @@ function handleNewPrompt() {
   currentResult = null;
   currentPromptText = '';
   inputPrompt.value = '';
+  refineInput.value = '';
+  actionStatus.textContent = '';
   updateCharCount();
   showSection(sectionInput);
   inputPrompt.focus();
@@ -359,6 +462,12 @@ function init() {
       handleImprove();
     }
   });
+  refineInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleRefine();
+    }
+  });
 
   // Button events
   btnImprove.addEventListener('click', handleImprove);
@@ -366,7 +475,8 @@ function init() {
   btnCopy.addEventListener('click', handleCopy);
   btnReplace.addEventListener('click', handleReplace);
   btnInsert.addEventListener('click', handleInsert);
-  btnOpenWebsite.addEventListener('click', () => chrome.tabs.create({ url: WEBSITE_URL }));
+  btnOpenWebsite.addEventListener('click', handleOpenWebsite);
+  btnRefine.addEventListener('click', handleRefine);
   btnNew.addEventListener('click', handleNewPrompt);
   btnRetry.addEventListener('click', handleRetry);
   btnBackGuided.addEventListener('click', () => showSection(sectionInput));

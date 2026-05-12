@@ -24,3 +24,22 @@ export const DAILY_GENERATE_LIMIT = 50;
 
 export const EXTENSION_NAME = 'Bhai Thik Kor';
 export const WEBSITE_URL = 'https://bhaithikkor.vercel.app';
+
+export function buildWebsiteUrl(prompt?: string, platformId?: string, mode?: 'normal' | 'guided'): string {
+  const url = new URL(WEBSITE_URL);
+  url.searchParams.set('source', 'extension');
+
+  if (prompt?.trim()) {
+    url.searchParams.set('prompt', prompt.trim());
+  }
+
+  if (platformId?.trim()) {
+    url.searchParams.set('platform', platformId.trim());
+  }
+
+  if (mode) {
+    url.searchParams.set('mode', mode);
+  }
+
+  return url.toString();
+}

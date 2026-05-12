@@ -8,9 +8,12 @@ A Grammarly-like Chrome extension that works with the [Bhai Thik Kor](https://bh
 
 - **Normal Mode**: Type a rough idea → get an optimized prompt.
 - **Guided Mode**: Answer clarifying questions → get a sharper prompt.
+- **Floating Watermelon Button**: Local prompt detection near editable fields.
 - **Context Menu**: Select text → right-click → "Improve with Bhai Thik Kor".
-- **Keyboard Shortcut**: `Ctrl+Shift+B` (Windows/Linux) or `Cmd+Shift+B` (macOS).
-- **Actions**: Copy, Replace, Insert Below, Open Website.
+- **Keyboard Shortcuts**: `Alt+I` improves selected/focused text in place. `Alt+B` opens the extension.
+- **Direct Page Rewrite**: Right-click or watermelon-button improve replaces text in the same box.
+- **First-Pass Quality Boost**: Adds compact structure, assumption, and token-budget guidance before generation.
+- **Actions**: Copy, Replace, Insert Below, Tweak, Open Website.
 - **Model Routing**: See recommended AI models per tier (open source / freemium / premium).
 
 ## Tech Stack
@@ -20,7 +23,7 @@ A Grammarly-like Chrome extension that works with the [Bhai Thik Kor](https://bh
 - TypeScript (strict mode)
 - Tailwind CSS (popup styling)
 - Vanilla DOM (no React)
-- Shadow DOM (for future in-page overlay)
+- Shadow DOM (in-page overlay and floating action button)
 
 ## Architecture
 
@@ -41,7 +44,7 @@ npm run dev      # Watch mode — rebuilds on file changes
 npm run build    # Production build with type checking
 ```
 
-Load the `dist/` folder as an unpacked extension in `chrome://extensions`.
+Load the `dist/` folder as an unpacked extension in `chrome://extensions` or `brave://extensions`.
 
 ## Privacy
 

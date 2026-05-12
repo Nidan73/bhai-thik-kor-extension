@@ -1,4 +1,5 @@
 import { ENDPOINTS } from './constants';
+import { prepareGenerateRequest } from './prompt-quality';
 import type {
   GenerateResult,
   ClarifyingQuestion,
@@ -8,6 +9,18 @@ import type {
 } from './types';
 
 // ─── Rate Limit Header Parser ───────────────────────────────────────────────────
+
+export class ApiClientError extends Error {
+  status: number;
+  retryAfter?: number;
+
+  constructor(message: string, status: number, retryAfter?: number) {
+    super(message);
+    this.name = 'ApiClientError';
+    this.status = status;
+    this.retryAfter = retryAfter;
+  }
+}
 
 function parseRateLimit(headers: Headers): RateLimitInfo | undefined {
   const limit = headers.get('X-RateLimit-Limit');
@@ -22,6 +35,43 @@ function parseRateLimit(headers: Headers): RateLimitInfo | undefined {
     };
   }
   return undefined;
+}
+
+function parseRetryAfter(response: Response, err?: ApiError): number | undefined {
+  if (typeof err?.retryAfter === 'number') return err.retryAfter;
+
+  const retryAfter = response.headers.get('Retry-After');
+  if (!retryAfter) return undefined;
+
+  const seconds = Number.parseInt(retryAfter, 10);
+  return Number.isFinite(seconds) ? seconds : undefined;
+}
+
+function friendlyErrorMessage(response: Response, err?: ApiError): string {
+  if (response.status === 429) {
+    return err?.error || 'You hit the rate limit. Try again in a little bit.';
+  }
+
+  if (response.status === 503) {
+    return err?.error || 'Bhai Thik Kor is busy right now. Try again soon.';
+  }
+
+  if (response.status >= 500) {
+    return err?.error || 'Bhai Thik Kor had a server hiccup. Try again soon.';
+  }
+
+  return err?.error || `Server error (${response.status})`;
+}
+
+async function throwIfNotOk(response: Response): Promise<void> {
+  if (response.ok) return;
+
+  const err: ApiError | undefined = await response.json().catch(() => undefined);
+  throw new ApiClientError(
+    friendlyErrorMessage(response, err),
+    response.status,
+    parseRetryAfter(response, err),
+  );
 }
 
 // ─── Stream Parser for streamObject/streamText ──────────────────────────────────
@@ -52,18 +102,15 @@ export async function apiGenerate(
   prompt: string,
   clarifications: Clarification[] = [],
 ): Promise<{ result: GenerateResult; rateLimit?: RateLimitInfo }> {
+  const request = prepareGenerateRequest(prompt, clarifications);
+
   const response = await fetch(ENDPOINTS.generate, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, clarifications }),
+    body: JSON.stringify(request),
   });
 
-  if (!response.ok) {
-    const err: ApiError = await response.json().catch(() => ({
-      error: `Server error (${response.status})`,
-    }));
-    throw new Error(err.error);
-  }
+  await throwIfNotOk(response);
 
   const rateLimit = parseRateLimit(response.headers);
 
@@ -99,12 +146,7 @@ export async function apiClarify(prompt: string): Promise<ClarifyingQuestion[]> 
     body: JSON.stringify({ prompt }),
   });
 
-  if (!response.ok) {
-    const err: ApiError = await response.json().catch(() => ({
-      error: `Server error (${response.status})`,
-    }));
-    throw new Error(err.error);
-  }
+  await throwIfNotOk(response);
 
   return response.json();
 }
@@ -121,12 +163,7 @@ export async function apiRefine(
     body: JSON.stringify({ currentPrompt, instruction }),
   });
 
-  if (!response.ok) {
-    const err: ApiError = await response.json().catch(() => ({
-      error: `Server error (${response.status})`,
-    }));
-    throw new Error(err.error);
-  }
+  await throwIfNotOk(response);
 
   return consumeTextStream(response);
 }
