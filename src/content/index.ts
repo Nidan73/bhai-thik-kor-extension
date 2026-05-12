@@ -200,6 +200,7 @@ const UPLOAD_ONLY_PATTERN =
 let overlayHost: HTMLDivElement | null = null;
 let floatingHost: HTMLDivElement | null = null;
 let toastHost: HTMLDivElement | null = null;
+let busyBorderHost: HTMLDivElement | null = null;
 let lastActiveEditable: HTMLElement | null = null;
 let lastCaptureTarget: HTMLElement | null = null;
 let lastSelectionRange: Range | null = null;
@@ -894,6 +895,7 @@ function startBusyState(requestId = createRequestId()) {
   target.setAttribute('aria-busy', 'true');
   target.style.pointerEvents = 'none';
   visualTarget.classList.add('btk-improving');
+  showBusyBorder(visualTarget);
 
   window.getSelection()?.removeAllRanges();
   hideFloatingButton();
@@ -939,6 +941,7 @@ function stopBusyState(requestId?: string): boolean {
 
   target.style.pointerEvents = previousStyle.pointerEvents;
   visualTarget.classList.remove('btk-improving');
+  hideBusyBorder();
   visualTarget.style.opacity = previousStyle.opacity;
   visualTarget.style.filter = previousStyle.filter;
   visualTarget.style.cursor = previousStyle.cursor;
@@ -947,6 +950,56 @@ function stopBusyState(requestId?: string): boolean {
 
   busyState = null;
   return true;
+}
+
+function showBusyBorder(target: HTMLElement) {
+  ensureBusyStyle();
+
+  if (!busyBorderHost) {
+    busyBorderHost = document.createElement('div');
+    busyBorderHost.id = 'btk-busy-border';
+    busyBorderHost.setAttribute('aria-hidden', 'true');
+    document.documentElement.appendChild(busyBorderHost);
+  }
+
+  updateBusyBorder(target);
+}
+
+function updateBusyBorder(target = busyState?.visualTarget) {
+  if (!busyBorderHost || !target || !document.contains(target)) return;
+
+  const rect = target.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    busyBorderHost.style.display = 'none';
+    return;
+  }
+
+  busyBorderHost.style.display = 'block';
+  busyBorderHost.style.left = `${Math.max(4, rect.left - 5)}px`;
+  busyBorderHost.style.top = `${Math.max(4, rect.top - 5)}px`;
+  busyBorderHost.style.width = `${Math.max(1, rect.width + 10)}px`;
+  busyBorderHost.style.height = `${Math.max(1, rect.height + 10)}px`;
+  busyBorderHost.style.borderRadius = getBusyBorderRadius(target, rect);
+}
+
+function hideBusyBorder() {
+  busyBorderHost?.remove();
+  busyBorderHost = null;
+}
+
+function getBusyBorderRadius(target: HTMLElement, rect: DOMRect): string {
+  const radius = window.getComputedStyle(target).borderRadius;
+  if (radius && !isZeroRadius(radius)) return radius;
+
+  const fallback = Math.round(Math.max(10, Math.min(24, rect.height * 0.18)));
+  return `${fallback}px`;
+}
+
+function isZeroRadius(radius: string): boolean {
+  const values = radius.match(/[\d.]+/g);
+  if (!values?.length) return true;
+
+  return values.every(value => Number(value) === 0);
 }
 
 function insertBelow(newText: string): boolean {
@@ -1628,7 +1681,7 @@ function escapeHtml(value: string): string {
 }
 
 function cleanupTransientUi() {
-  document.querySelectorAll('#btk-floating-root, #btk-overlay-root, #btk-toast-root').forEach(node => {
+  document.querySelectorAll('#btk-floating-root, #btk-overlay-root, #btk-toast-root, #btk-busy-border').forEach(node => {
     node.remove();
   });
 }
@@ -1661,23 +1714,21 @@ function ensureBusyStyle() {
     }
 
     .btk-improving {
-      position: relative !important;
       opacity: 0.58 !important;
       filter: saturate(0.9) brightness(0.94) !important;
       cursor: progress !important;
     }
 
-    .btk-improving::after {
-      content: "";
-      position: absolute;
-      inset: -4px;
-      z-index: 2147483000;
+    #btk-busy-border {
+      position: fixed;
+      z-index: 2147483646;
       pointer-events: none;
-      border-radius: inherit;
+      box-sizing: border-box;
       padding: 2px;
       background: linear-gradient(115deg, #34d399, #10b981, #f43f5e, #ef4444, #34d399);
       background-size: 240% 240%;
       animation: btkGradientGlow 1.05s ease-in-out infinite;
+      box-shadow: 0 0 18px rgba(52, 211, 153, 0.44), 0 0 28px rgba(244, 63, 94, 0.28);
       -webkit-mask:
         linear-gradient(#000 0 0) content-box,
         linear-gradient(#000 0 0);
@@ -1869,5 +1920,12 @@ window.addEventListener('scroll', scheduleFloatingUpdate, {
   signal: contentController.signal,
 });
 window.addEventListener('resize', scheduleFloatingUpdate, {
+  signal: contentController.signal,
+});
+window.addEventListener('scroll', () => updateBusyBorder(), {
+  capture: true,
+  signal: contentController.signal,
+});
+window.addEventListener('resize', () => updateBusyBorder(), {
   signal: contentController.signal,
 });

@@ -89,10 +89,41 @@ async function fetchWithTimeout(
       throw new ApiClientError('Bhai Thik Kor took too long to respond. Try again.', 0);
     }
 
+    if (err instanceof TypeError) {
+      throw new ApiClientError(
+        'Could not connect to Bhai Thik Kor. Check your connection and try again.',
+        0,
+      );
+    }
+
     throw err;
   } finally {
     globalThis.clearTimeout(timeout);
   }
+}
+
+async function fetchWithRetry(
+  input: RequestInfo | URL,
+  init: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetchWithTimeout(input, init);
+  } catch (err) {
+    if (
+      err instanceof ApiClientError &&
+      err.status === 0 &&
+      !err.message.toLowerCase().includes('too long')
+    ) {
+      await delay(450);
+      return fetchWithTimeout(input, init);
+    }
+
+    throw err;
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => globalThis.setTimeout(resolve, ms));
 }
 
 async function withTimeout<T>(
@@ -144,7 +175,7 @@ export async function apiGenerate(
 ): Promise<{ result: GenerateResult; rateLimit?: RateLimitInfo }> {
   const request = prepareGenerateRequest(prompt, clarifications);
 
-  const response = await fetchWithTimeout(ENDPOINTS.generate, {
+  const response = await fetchWithRetry(ENDPOINTS.generate, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -180,7 +211,7 @@ export async function apiGenerate(
 // ─── Clarify (Guided Mode) ──────────────────────────────────────────────────────
 
 export async function apiClarify(prompt: string): Promise<ClarifyingQuestion[]> {
-  const response = await fetchWithTimeout(ENDPOINTS.clarify, {
+  const response = await fetchWithRetry(ENDPOINTS.clarify, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt }),
@@ -197,7 +228,7 @@ export async function apiRefine(
   currentPrompt: string,
   instruction: string,
 ): Promise<string> {
-  const response = await fetchWithTimeout(ENDPOINTS.refine, {
+  const response = await fetchWithRetry(ENDPOINTS.refine, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ currentPrompt, instruction }),
