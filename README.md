@@ -13,6 +13,7 @@ A Grammarly-like Chrome extension that works with the [Bhai Thik Kor](https://bh
 - **Keyboard Shortcuts**: `Alt+I` improves selected/focused text in place. `Alt+B` opens the extension.
 - **Direct Page Rewrite**: Right-click or watermelon-button improve replaces text in the same box.
 - **First-Pass Quality Boost**: Adds compact structure, assumption, and token-budget guidance before generation.
+- **Private Website Handoff**: Opens the website without putting prompt text in the URL.
 - **Actions**: Copy, Replace, Insert Below, Tweak, Open Website.
 - **Model Routing**: See recommended AI models per tier (open source / freemium / premium).
 
@@ -53,6 +54,7 @@ Load the `dist/` folder as an unpacked extension in `chrome://extensions` or `br
 - No keystroke logging.
 - No automatic page content reading.
 - No API keys stored in the browser.
+- Prompt text is not added to website URLs.
 
 ## Backend
 

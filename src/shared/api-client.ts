@@ -1,4 +1,4 @@
-import { ENDPOINTS } from './constants';
+import { API_TIMEOUT_MS, ENDPOINTS } from './constants';
 import { prepareGenerateRequest } from './prompt-quality';
 import type {
   GenerateResult,
@@ -74,6 +74,46 @@ async function throwIfNotOk(response: Response): Promise<void> {
   );
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs = API_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiClientError('Bhai Thik Kor took too long to respond. Try again.', 0);
+    }
+
+    throw err;
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs = API_TIMEOUT_MS,
+): Promise<T> {
+  let timeout: ReturnType<typeof globalThis.setTimeout>;
+
+  const timeoutPromise = new Promise<never>((_resolve, reject) => {
+    timeout = globalThis.setTimeout(() => {
+      reject(new ApiClientError('Bhai Thik Kor took too long to respond. Try again.', 0));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    globalThis.clearTimeout(timeout!);
+  }
+}
+
 // ─── Stream Parser for streamObject/streamText ──────────────────────────────────
 
 /**
@@ -104,7 +144,7 @@ export async function apiGenerate(
 ): Promise<{ result: GenerateResult; rateLimit?: RateLimitInfo }> {
   const request = prepareGenerateRequest(prompt, clarifications);
 
-  const response = await fetch(ENDPOINTS.generate, {
+  const response = await fetchWithTimeout(ENDPOINTS.generate, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
@@ -116,7 +156,7 @@ export async function apiGenerate(
 
   // The generate endpoint streams structured JSON via toTextStreamResponse()
   // We collect the full stream, then parse the accumulated JSON
-  const rawText = await consumeTextStream(response);
+  const rawText = await withTimeout(consumeTextStream(response));
 
   // The streamed text is the raw JSON object
   let result: GenerateResult;
@@ -140,7 +180,7 @@ export async function apiGenerate(
 // ─── Clarify (Guided Mode) ──────────────────────────────────────────────────────
 
 export async function apiClarify(prompt: string): Promise<ClarifyingQuestion[]> {
-  const response = await fetch(ENDPOINTS.clarify, {
+  const response = await fetchWithTimeout(ENDPOINTS.clarify, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt }),
@@ -157,7 +197,7 @@ export async function apiRefine(
   currentPrompt: string,
   instruction: string,
 ): Promise<string> {
-  const response = await fetch(ENDPOINTS.refine, {
+  const response = await fetchWithTimeout(ENDPOINTS.refine, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ currentPrompt, instruction }),
@@ -165,5 +205,5 @@ export async function apiRefine(
 
   await throwIfNotOk(response);
 
-  return consumeTextStream(response);
+  return withTimeout(consumeTextStream(response));
 }

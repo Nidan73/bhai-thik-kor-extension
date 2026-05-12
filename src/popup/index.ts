@@ -174,7 +174,7 @@ function renderRoutingCards(routing: GenerateResult['routing']) {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const prompt = currentResult?.optimized_prompt || currentPromptText;
-      chrome.tabs.create({ url: buildWebsiteUrl(prompt, rec.platform_id) });
+      openWebsite(prompt, rec.platform_id);
     });
 
     card.append(left, link);
@@ -423,9 +423,30 @@ async function handleRefine() {
   btnRefine.disabled = false;
 }
 
-function handleOpenWebsite() {
+async function handleOpenWebsite() {
   const prompt = currentResult?.optimized_prompt || currentPromptText || inputPrompt.value.trim();
-  chrome.tabs.create({ url: buildWebsiteUrl(prompt) });
+  await openWebsite(prompt);
+}
+
+async function openWebsite(prompt?: string, platformId?: string) {
+  const copied = await copyPromptSilently(prompt);
+  chrome.tabs.create({ url: buildWebsiteUrl(undefined, platformId) });
+
+  if (copied) {
+    showActionStatus('Prompt copied. Website opened without adding it to the URL.', 'success');
+  }
+}
+
+async function copyPromptSilently(prompt?: string): Promise<boolean> {
+  const text = prompt?.trim();
+  if (!text) return false;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ─── Error Handling ─────────────────────────────────────────────────────────────

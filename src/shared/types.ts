@@ -45,8 +45,8 @@ export type RateLimitInfo = {
 // ─── Message Protocol ───────────────────────────────────────────────────────────
 
 export type Message =
-  | { type: 'IMPROVE_REQUEST'; payload: { text: string; source: ImproveSource } }
-  | { type: 'IMPROVE_STARTED'; payload: { text: string; source: ImproveSource } }
+  | { type: 'IMPROVE_REQUEST'; payload: { text: string; source: ImproveSource; requestId?: string } }
+  | { type: 'IMPROVE_STARTED'; payload: { text: string; source: ImproveSource; requestId?: string } }
   | {
       type: 'IMPROVE_RESPONSE';
       payload: {
@@ -54,6 +54,7 @@ export type Message =
         rateLimit?: RateLimitInfo;
         originalText?: string;
         source?: ImproveSource;
+        requestId?: string;
       };
     }
   | {
@@ -63,6 +64,7 @@ export type Message =
         retryAfter?: number;
         originalText?: string;
         source?: ImproveSource;
+        requestId?: string;
       };
     }
   | { type: 'CLARIFY_REQUEST'; payload: { text: string } }

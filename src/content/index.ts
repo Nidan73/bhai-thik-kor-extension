@@ -17,6 +17,7 @@ import type {
 const PROMPT_MIN_CHARS = 3;
 const WEBSITE_URL = 'https://bhaithikkor.vercel.app';
 const CONTENT_STATE_KEY = '__btkContentState';
+const IMPROVE_TIMEOUT_MS = 50000;
 
 type ContentState = {
   controller: AbortController;
@@ -31,13 +32,9 @@ const contentController = new AbortController();
 globalState[CONTENT_STATE_KEY] = { controller: contentController };
 cleanupTransientUi();
 
-function buildWebsiteUrl(prompt?: string, platformId?: string, mode?: 'normal' | 'guided'): string {
+function buildWebsiteUrl(_prompt?: string, platformId?: string, mode?: 'normal' | 'guided'): string {
   const url = new URL(WEBSITE_URL);
   url.searchParams.set('source', 'extension');
-
-  if (prompt?.trim()) {
-    url.searchParams.set('prompt', prompt.trim());
-  }
 
   if (platformId?.trim()) {
     url.searchParams.set('platform', platformId.trim());
@@ -144,6 +141,7 @@ const AI_WORKFLOW_DOMAINS = [
 
 let overlayHost: HTMLDivElement | null = null;
 let floatingHost: HTMLDivElement | null = null;
+let toastHost: HTMLDivElement | null = null;
 let lastActiveEditable: HTMLElement | null = null;
 let lastCaptureTarget: HTMLElement | null = null;
 let lastSelectionRange: Range | null = null;
@@ -151,6 +149,9 @@ let lastInputSelection:
   | { target: HTMLInputElement | HTMLTextAreaElement; start: number; end: number }
   | null = null;
 let floatingTimer: number | undefined;
+let busyRecoveryTimer: number | undefined;
+let activeImproveRequestId: string | null = null;
+const ignoredImproveRequestIds = new Set<string>();
 let busyState:
   | {
       target: HTMLElement;
@@ -463,12 +464,13 @@ function isUsableVisualContainer(candidate: HTMLElement, target: HTMLElement): b
   return rect.width >= Math.min(targetRect.width, 180);
 }
 
-function startBusyState() {
+function startBusyState(requestId = createRequestId()) {
   const target = getMutationTarget();
   if (!target || busyState?.target === target) return;
 
   stopBusyState();
   ensureBusyStyle();
+  activeImproveRequestId = requestId;
 
   const visualTarget = getVisualContainer(target);
   busyState = {
@@ -504,10 +506,27 @@ function startBusyState() {
 
   window.getSelection()?.removeAllRanges();
   hideFloatingButton();
+
+  window.clearTimeout(busyRecoveryTimer);
+  busyRecoveryTimer = window.setTimeout(() => {
+    if (activeImproveRequestId !== requestId) return;
+
+    ignoredImproveRequestIds.add(requestId);
+    window.setTimeout(() => ignoredImproveRequestIds.delete(requestId), 120000);
+    stopBusyState(requestId);
+    showToast('Bhai Thik Kor is taking too long. Your text box is unlocked.', 'error');
+  }, IMPROVE_TIMEOUT_MS);
 }
 
-function stopBusyState() {
-  if (!busyState) return;
+function stopBusyState(requestId?: string): boolean {
+  if (requestId && activeImproveRequestId && activeImproveRequestId !== requestId) {
+    return false;
+  }
+
+  window.clearTimeout(busyRecoveryTimer);
+  activeImproveRequestId = null;
+
+  if (!busyState) return true;
 
   const { target, visualTarget, previousStyle } = busyState;
 
@@ -536,6 +555,7 @@ function stopBusyState() {
   visualTarget.style.boxShadow = previousStyle.boxShadow;
 
   busyState = null;
+  return true;
 }
 
 function insertBelow(newText: string): boolean {
@@ -787,7 +807,7 @@ function showResultOverlay(result: GenerateResult, originalText = '') {
     }),
     createActionButton('Guide', '', () => startGuidedFromOverlay(originalText || result.optimized_prompt)),
     createActionButton('Website', '', () => {
-      window.open(buildWebsiteUrl(result.optimized_prompt), '_blank', 'noopener,noreferrer');
+      void openWebsiteFromPage(result.optimized_prompt, undefined, root);
     }),
   );
   body.appendChild(actions);
@@ -815,7 +835,7 @@ function showResultOverlay(result: GenerateResult, originalText = '') {
     left.append(tier, model);
 
     const tryButton = createActionButton('Try', '', () => {
-      window.open(buildWebsiteUrl(result.optimized_prompt, rec.platform_id), '_blank', 'noopener,noreferrer');
+      void openWebsiteFromPage(result.optimized_prompt, rec.platform_id, root);
     });
     tryButton.title = rec.reasoning;
     route.append(left, tryButton);
@@ -895,6 +915,24 @@ async function copyText(text: string, root: ShadowRoot) {
   }
 
   setOverlayStatus(root, 'Copied.');
+}
+
+async function openWebsiteFromPage(prompt?: string, platformId?: string, root?: ShadowRoot) {
+  const text = prompt?.trim();
+  if (text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (root) {
+        setOverlayStatus(root, 'Prompt copied. Website opened without adding it to the URL.');
+      }
+    } catch {
+      if (root) {
+        setOverlayStatus(root, 'Website opened. Copy manually if you need the prompt there.');
+      }
+    }
+  }
+
+  window.open(buildWebsiteUrl(undefined, platformId), '_blank', 'noopener,noreferrer');
 }
 
 function setOverlayStatus(root: ShadowRoot, message: string) {
@@ -1144,35 +1182,44 @@ async function improveActiveField() {
   const text = snapshot.text.trim();
 
   if (snapshot.isBlocked) {
-    console.warn('[BTK] This field is protected. Bhai Thik Kor will not send it.');
+    showToast('Protected field skipped. Nothing was sent.', 'error');
     return;
   }
 
   if (text.length < PROMPT_MIN_CHARS) {
-    console.warn('[BTK] Write a little more first.');
+    showToast('Write a little more first.', 'info');
     return;
   }
 
+  const requestId = createRequestId();
   hideFloatingButton();
   closeOverlay();
-  startBusyState();
+  startBusyState(requestId);
 
   try {
     const response = await chrome.runtime.sendMessage({
       type: 'IMPROVE_REQUEST',
-      payload: { text, source: 'floating' },
+      payload: { text, source: 'floating', requestId },
     } satisfies Message);
 
+    if (
+      ignoredImproveRequestIds.has(requestId) ||
+      (response?.payload?.requestId && response.payload.requestId !== requestId)
+    ) {
+      return;
+    }
+
     if (response?.type === 'IMPROVE_RESPONSE') {
-      stopBusyState();
+      if (!stopBusyState(requestId)) return;
       replaceText(response.payload.result.optimized_prompt);
+      showToast('Prompt improved in place.', 'success');
     } else {
-      stopBusyState();
-      console.warn('[BTK]', response?.payload?.error || 'Failed to improve prompt.');
+      if (!stopBusyState(requestId)) return;
+      showToast(response?.payload?.error || 'Failed to improve prompt.', 'error');
     }
   } catch {
-    stopBusyState();
-    console.warn('[BTK] Could not reach Bhai Thik Kor. Check your connection.');
+    if (!stopBusyState(requestId)) return;
+    showToast('Could not reach Bhai Thik Kor. Check your connection.', 'error');
   }
 }
 
@@ -1185,7 +1232,7 @@ function escapeHtml(value: string): string {
 }
 
 function cleanupTransientUi() {
-  document.querySelectorAll('#btk-floating-root, #btk-overlay-root').forEach(node => {
+  document.querySelectorAll('#btk-floating-root, #btk-overlay-root, #btk-toast-root').forEach(node => {
     node.remove();
   });
 }
@@ -1245,6 +1292,74 @@ function ensureBusyStyle() {
   document.documentElement.appendChild(style);
 }
 
+function showToast(message: string, tone: 'success' | 'error' | 'info' = 'info') {
+  if (!toastHost) {
+    toastHost = document.createElement('div');
+    toastHost.id = 'btk-toast-root';
+    toastHost.style.position = 'fixed';
+    toastHost.style.zIndex = '2147483647';
+    toastHost.style.left = '50%';
+    toastHost.style.bottom = '24px';
+    toastHost.style.transform = 'translateX(-50%)';
+    document.documentElement.appendChild(toastHost);
+    toastHost.attachShadow({ mode: 'open' });
+  }
+
+  const root = toastHost.shadowRoot as ShadowRoot;
+  const accent =
+    tone === 'success'
+      ? '#34d399'
+      : tone === 'error'
+        ? '#f43f5e'
+        : '#f8b4c4';
+
+  root.innerHTML = `
+    <style>
+      :host { all: initial; }
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: min(520px, calc(100vw - 32px));
+        padding: 10px 13px;
+        border: 1px solid ${accent};
+        border-radius: 999px;
+        background: rgba(18, 24, 22, 0.94);
+        color: #fffdf8;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: ${accent};
+        box-shadow: 0 0 14px ${accent};
+        flex: 0 0 auto;
+      }
+    </style>
+    <div class="toast" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="message"></span>
+    </div>
+  `;
+  const messageEl = root.querySelector('.message');
+  if (messageEl) messageEl.textContent = message;
+
+  window.setTimeout(() => {
+    if (toastHost?.shadowRoot === root) {
+      toastHost.remove();
+      toastHost = null;
+    }
+  }, 3200);
+}
+
+function createRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function cacheSelection() {
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
@@ -1255,25 +1370,6 @@ function cacheSelection() {
     lastCaptureTarget = editable;
     lastSelectionRange = selection.getRangeAt(0).cloneRange();
   }
-}
-
-function handleImproveShortcut(event: KeyboardEvent) {
-  const key = event.key.toLowerCase();
-  const isMac = /mac/i.test(navigator.platform);
-  const isWindowsImprove = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && key === 'i';
-  const isMacImprove = isMac && event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && key === 'i';
-  if (!isWindowsImprove && !isMacImprove) return;
-
-  const target = getActiveEditable() || lastActiveEditable;
-  if (!target || !document.contains(target) || isFieldBlocked(target)) return;
-
-  event.preventDefault();
-  event.stopPropagation();
-  window.setTimeout(() => {
-    if (!busyState) {
-      void improveActiveField();
-    }
-  }, 90);
 }
 
 // ─── Message Listener ───────────────────────────────────────────────────────────
@@ -1301,25 +1397,49 @@ chrome.runtime.onMessage.addListener(
 
       case 'IMPROVE_STARTED': {
         closeOverlay();
-        startBusyState();
+        startBusyState(message.payload.requestId);
         return false;
       }
 
       case 'IMPROVE_RESPONSE': {
+        if (
+          message.payload.requestId &&
+          ignoredImproveRequestIds.has(message.payload.requestId)
+        ) {
+          return false;
+        }
+
+        if (
+          message.payload.requestId &&
+          activeImproveRequestId &&
+          message.payload.requestId !== activeImproveRequestId
+        ) {
+          return false;
+        }
+
         closeOverlay();
         hideFloatingButton();
-        stopBusyState();
+        if (!stopBusyState(message.payload.requestId)) return false;
         const success = replaceText(message.payload.result.optimized_prompt);
         if (!success) {
-          console.warn('[BTK] Could not replace text in this field.');
+          showToast('Could not replace text in this field.', 'error');
+        } else {
+          showToast('Prompt improved in place.', 'success');
         }
         return false;
       }
 
       case 'IMPROVE_ERROR': {
+        if (
+          message.payload.requestId &&
+          ignoredImproveRequestIds.has(message.payload.requestId)
+        ) {
+          return false;
+        }
+
         closeOverlay();
-        stopBusyState();
-        console.warn('[BTK]', message.payload.error);
+        if (!stopBusyState(message.payload.requestId)) return false;
+        showToast(message.payload.error, 'error');
         return false;
       }
     }
@@ -1331,10 +1451,6 @@ document.addEventListener('focusin', scheduleFloatingUpdate, {
   signal: contentController.signal,
 });
 document.addEventListener('input', scheduleFloatingUpdate, {
-  capture: true,
-  signal: contentController.signal,
-});
-document.addEventListener('keydown', handleImproveShortcut, {
   capture: true,
   signal: contentController.signal,
 });

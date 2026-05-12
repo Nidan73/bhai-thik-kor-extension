@@ -101,7 +101,12 @@ chrome.commands.onCommand.addListener(async (command) => {
 onMessage((message: Message, _sender, sendResponse) => {
   switch (message.type) {
     case 'IMPROVE_REQUEST':
-      handleImproveFromMessage(message.payload.text, message.payload.source, sendResponse);
+      handleImproveFromMessage(
+        message.payload.text,
+        message.payload.source,
+        sendResponse,
+        message.payload.requestId,
+      );
       return true;
 
     case 'CLARIFY_REQUEST':
@@ -132,13 +137,14 @@ async function handleImproveFromMessage(
   text: string,
   source: ImproveSource,
   sendResponse: (response: unknown) => void,
+  requestId = createRequestId(),
 ) {
   const trimmed = text.trim();
 
   if (trimmed.length < PROMPT_MIN_CHARS) {
     sendResponse({
       type: 'IMPROVE_ERROR',
-      payload: { error: 'Add more detail to your prompt.', originalText: trimmed, source },
+      payload: { error: 'Add more detail to your prompt.', originalText: trimmed, source, requestId },
     });
     return;
   }
@@ -147,18 +153,19 @@ async function handleImproveFromMessage(
     const { result, rateLimit } = await apiGenerate(trimmed);
     sendResponse({
       type: 'IMPROVE_RESPONSE',
-      payload: { result, rateLimit, originalText: trimmed, source },
+      payload: { result, rateLimit, originalText: trimmed, source, requestId },
     });
   } catch (err) {
     sendResponse({
       type: 'IMPROVE_ERROR',
-      payload: toImproveErrorPayload(err, 'Failed to improve prompt.', trimmed, source),
+      payload: toImproveErrorPayload(err, 'Failed to improve prompt.', trimmed, source, requestId),
     });
   }
 }
 
 async function handleImproveRequest(text: string, source: ImproveSource, tabId: number) {
   const trimmed = text.trim();
+  const requestId = createRequestId();
 
   if (trimmed.length < PROMPT_MIN_CHARS) {
     sendImproveErrorToTab(tabId, 'Select or write a little more text first.', trimmed, source);
@@ -167,7 +174,7 @@ async function handleImproveRequest(text: string, source: ImproveSource, tabId: 
 
   chrome.tabs.sendMessage(tabId, {
     type: 'IMPROVE_STARTED',
-    payload: { text: trimmed, source },
+    payload: { text: trimmed, source, requestId },
   } satisfies Message).catch(() => undefined);
 
   try {
@@ -175,12 +182,12 @@ async function handleImproveRequest(text: string, source: ImproveSource, tabId: 
 
     chrome.tabs.sendMessage(tabId, {
       type: 'IMPROVE_RESPONSE',
-      payload: { result, rateLimit, originalText: trimmed, source },
+      payload: { result, rateLimit, originalText: trimmed, source, requestId },
     } satisfies Message).catch(() => undefined);
   } catch (err) {
     chrome.tabs.sendMessage(tabId, {
       type: 'IMPROVE_ERROR',
-      payload: toImproveErrorPayload(err, 'Failed to improve prompt.', trimmed, source),
+      payload: toImproveErrorPayload(err, 'Failed to improve prompt.', trimmed, source, requestId),
     } satisfies Message).catch(() => undefined);
   }
 }
@@ -293,11 +300,17 @@ function toImproveErrorPayload(
   fallback: string,
   originalText: string,
   source: ImproveSource,
+  requestId?: string,
 ) {
   return {
     error: err instanceof Error ? err.message : fallback,
     retryAfter: err instanceof ApiClientError ? err.retryAfter : undefined,
     originalText,
     source,
+    requestId,
   };
+}
+
+function createRequestId(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
