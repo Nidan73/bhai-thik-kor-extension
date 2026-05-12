@@ -12,6 +12,7 @@ import { onMessage } from '@/shared/messages';
 import { ApiClientError, apiGenerate, apiClarify, apiRefine } from '@/shared/api-client';
 import { PROMPT_MIN_CHARS } from '@/shared/constants';
 import type {
+  AttachmentContext,
   Clarification,
   FieldType,
   ImproveSource,
@@ -22,6 +23,7 @@ type SelectedTextPayload = {
   text: string;
   fieldType: FieldType;
   isBlocked: boolean;
+  attachmentContext?: AttachmentContext;
 };
 
 const PROTECTED_FIELD_MESSAGE =
@@ -69,7 +71,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 
   const text = (captured?.text || info.selectionText || '').trim();
-  await handleImproveRequest(text, 'context-menu', tab.id);
+  await handleImproveRequest(text, 'context-menu', tab.id, captured?.attachmentContext);
 });
 
 // ─── Keyboard Shortcut ──────────────────────────────────────────────────────────
@@ -93,7 +95,7 @@ chrome.commands.onCommand.addListener(async (command) => {
     return;
   }
 
-  await handleImproveRequest(captured.text.trim(), 'shortcut', tab.id);
+  await handleImproveRequest(captured.text.trim(), 'shortcut', tab.id, captured.attachmentContext);
 });
 
 // ─── Message Router ─────────────────────────────────────────────────────────────
@@ -106,6 +108,7 @@ onMessage((message: Message, _sender, sendResponse) => {
         message.payload.source,
         sendResponse,
         message.payload.requestId,
+        message.payload.attachmentContext,
       );
       return true;
 
@@ -138,6 +141,7 @@ async function handleImproveFromMessage(
   source: ImproveSource,
   sendResponse: (response: unknown) => void,
   requestId = createRequestId(),
+  attachmentContext?: AttachmentContext,
 ) {
   const trimmed = text.trim();
 
@@ -150,7 +154,10 @@ async function handleImproveFromMessage(
   }
 
   try {
-    const { result, rateLimit } = await apiGenerate(trimmed);
+    const { result, rateLimit } = await apiGenerate(
+      trimmed,
+      buildAttachmentClarifications(attachmentContext),
+    );
     sendResponse({
       type: 'IMPROVE_RESPONSE',
       payload: { result, rateLimit, originalText: trimmed, source, requestId },
@@ -163,7 +170,12 @@ async function handleImproveFromMessage(
   }
 }
 
-async function handleImproveRequest(text: string, source: ImproveSource, tabId: number) {
+async function handleImproveRequest(
+  text: string,
+  source: ImproveSource,
+  tabId: number,
+  attachmentContext?: AttachmentContext,
+) {
   const trimmed = text.trim();
   const requestId = createRequestId();
 
@@ -178,7 +190,10 @@ async function handleImproveRequest(text: string, source: ImproveSource, tabId: 
   } satisfies Message).catch(() => undefined);
 
   try {
-    const { result, rateLimit } = await apiGenerate(trimmed);
+    const { result, rateLimit } = await apiGenerate(
+      trimmed,
+      buildAttachmentClarifications(attachmentContext),
+    );
 
     chrome.tabs.sendMessage(tabId, {
       type: 'IMPROVE_RESPONSE',
@@ -309,6 +324,27 @@ function toImproveErrorPayload(
     source,
     requestId,
   };
+}
+
+function buildAttachmentClarifications(
+  attachmentContext?: AttachmentContext,
+): Clarification[] {
+  if (!attachmentContext || attachmentContext.count < 1) return [];
+
+  const attachmentNoun = attachmentContext.count === 1 ? 'attachment' : 'attachments';
+  const summary = attachmentContext.summary || `${attachmentContext.count} attached item(s)`;
+
+  return [
+    {
+      question: 'Attached file context from the current text box',
+      answer: [
+        `The user has ${summary} in the same composer as the prompt.`,
+        `The optimized prompt should explicitly tell the target AI to use the attached ${attachmentNoun} as context.`,
+        'Do not claim to have inspected the attachment contents; only preserve and clarify that the attachment should be used when the user sends the prompt.',
+        'If the prompt says "this", "this section", "the image", or similar, resolve that reference to the attached item.',
+      ].join(' '),
+    },
+  ];
 }
 
 function createRequestId(): string {

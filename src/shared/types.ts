@@ -34,6 +34,14 @@ export type Clarification = {
 
 export type ImproveSource = 'popup' | 'context-menu' | 'shortcut' | 'floating';
 
+export type AttachmentKind = 'image' | 'file' | 'media' | 'unknown';
+
+export type AttachmentContext = {
+  count: number;
+  kinds: AttachmentKind[];
+  summary: string;
+};
+
 // ─── Rate Limit Info ────────────────────────────────────────────────────────────
 
 export type RateLimitInfo = {
@@ -45,7 +53,15 @@ export type RateLimitInfo = {
 // ─── Message Protocol ───────────────────────────────────────────────────────────
 
 export type Message =
-  | { type: 'IMPROVE_REQUEST'; payload: { text: string; source: ImproveSource; requestId?: string } }
+  | {
+      type: 'IMPROVE_REQUEST';
+      payload: {
+        text: string;
+        source: ImproveSource;
+        requestId?: string;
+        attachmentContext?: AttachmentContext;
+      };
+    }
   | { type: 'IMPROVE_STARTED'; payload: { text: string; source: ImproveSource; requestId?: string } }
   | {
       type: 'IMPROVE_RESPONSE';
@@ -75,7 +91,15 @@ export type Message =
   | { type: 'REFINE_RESPONSE'; payload: { refinedPrompt: string } }
   | { type: 'REFINE_ERROR'; payload: { error: string; retryAfter?: number } }
   | { type: 'GET_SELECTED_TEXT' }
-  | { type: 'SELECTED_TEXT_RESULT'; payload: { text: string; fieldType: FieldType; isBlocked: boolean } }
+  | {
+      type: 'SELECTED_TEXT_RESULT';
+      payload: {
+        text: string;
+        fieldType: FieldType;
+        isBlocked: boolean;
+        attachmentContext?: AttachmentContext;
+      };
+    }
   | { type: 'REPLACE_TEXT'; payload: { text: string } }
   | { type: 'INSERT_BELOW'; payload: { text: string } }
   | { type: 'ACTION_DONE'; payload: { success: boolean } };
