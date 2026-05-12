@@ -156,7 +156,7 @@ async function handleImproveFromMessage(
   try {
     const { result, rateLimit } = await apiGenerate(
       trimmed,
-      buildAttachmentClarifications(attachmentContext),
+      buildAttachmentClarifications(trimmed, attachmentContext),
     );
     sendResponse({
       type: 'IMPROVE_RESPONSE',
@@ -192,7 +192,7 @@ async function handleImproveRequest(
   try {
     const { result, rateLimit } = await apiGenerate(
       trimmed,
-      buildAttachmentClarifications(attachmentContext),
+      buildAttachmentClarifications(trimmed, attachmentContext),
     );
 
     chrome.tabs.sendMessage(tabId, {
@@ -327,24 +327,33 @@ function toImproveErrorPayload(
 }
 
 function buildAttachmentClarifications(
+  prompt: string,
   attachmentContext?: AttachmentContext,
 ): Clarification[] {
   if (!attachmentContext || attachmentContext.count < 1) return [];
 
   const attachmentNoun = attachmentContext.count === 1 ? 'attachment' : 'attachments';
   const summary = attachmentContext.summary || `${attachmentContext.count} attached item(s)`;
+  const selectedTask = clipForClarification(prompt);
 
   return [
     {
       question: 'Attached file context from the current text box',
       answer: [
-        `The user has ${summary} in the same composer as the prompt.`,
-        `The optimized prompt should explicitly tell the target AI to use the attached ${attachmentNoun} as context.`,
-        'Do not claim to have inspected the attachment contents; only preserve and clarify that the attachment should be used when the user sends the prompt.',
-        'If the prompt says "this", "this section", "the image", or similar, resolve that reference to the attached item.',
+        `The current composer has ${summary}.`,
+        `Preserve the selected task exactly: "${selectedTask}".`,
+        `Mention the attached ${attachmentNoun} only as reference/context for that same task.`,
+        'Do not turn the request into image analysis, comparison, recommendations, extraction, or a report unless the selected text explicitly asks for that.',
+        'Do not claim the extension inspected the attachment contents.',
+        'For vague references like "this", "this section", or "the image", point the final prompt at the attached item while keeping the original deliverable.',
       ].join(' '),
     },
   ];
+}
+
+function clipForClarification(text: string): string {
+  const singleLine = text.replace(/\s+/g, ' ').trim();
+  return singleLine.length <= 140 ? singleLine : `${singleLine.slice(0, 137)}...`;
 }
 
 function createRequestId(): string {

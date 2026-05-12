@@ -474,7 +474,7 @@ function isAttachmentEvidenceElement(element: HTMLElement, root: HTMLElement): b
   if (element.closest('#btk-floating-root, #btk-overlay-root, #btk-toast-root')) return false;
 
   if (element instanceof HTMLInputElement && element.type === 'file') {
-    return Boolean(element.files?.length);
+    return Boolean(element.files?.length) && isVisibleElement(element);
   }
 
   if (hasBlobMedia(element)) {
@@ -502,10 +502,55 @@ function isAttachmentEvidenceElement(element: HTMLElement, root: HTMLElement): b
 }
 
 function getAttachmentElementKey(element: HTMLElement, root: HTMLElement): HTMLElement {
+  const previewGroup = closestAttachmentPreviewGroup(element, root);
+  if (previewGroup) return previewGroup;
+
   const card = closestAttachmentCard(element, root);
   if (card) return card;
 
   return element;
+}
+
+function closestAttachmentPreviewGroup(
+  element: HTMLElement,
+  root: HTMLElement,
+): HTMLElement | null {
+  let current: HTMLElement | null = element;
+
+  while (current && current !== root) {
+    if (
+      isReasonableAttachmentCard(current, root) &&
+      hasAttachmentPreviewMedia(current) &&
+      hasAttachmentPreviewEvidence(current)
+    ) {
+      return current;
+    }
+
+    current = current.parentElement;
+  }
+
+  return null;
+}
+
+function hasAttachmentPreviewMedia(element: HTMLElement): boolean {
+  if (hasBlobMedia(element)) return true;
+
+  return Boolean(
+    element.querySelector(
+      'img[alt*="attached" i],img[alt*="attachment" i],img[alt*="uploaded" i],img[alt*="preview" i]',
+    ),
+  );
+}
+
+function hasAttachmentPreviewEvidence(element: HTMLElement): boolean {
+  const blob = getAttachmentTextBlob(element);
+  if (ATTACHMENT_EVIDENCE_PATTERN.test(blob)) return true;
+
+  return Boolean(
+    element.querySelector(
+      '[aria-label*="remove" i],[aria-label*="attached" i],[aria-label*="attachment" i],[title*="attached" i],[title*="attachment" i]',
+    ),
+  );
 }
 
 function closestAttachmentCard(element: HTMLElement, root: HTMLElement): HTMLElement | null {

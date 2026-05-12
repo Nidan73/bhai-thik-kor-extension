@@ -51,12 +51,12 @@ function buildQualityClarifications(
     {
       question: 'First-pass quality target',
       answer: structured
-        ? 'Preserve the existing intent and structure, but tighten weak wording, remove duplication, fill obvious gaps, and make the prompt ready to use without another refinement pass.'
-        : 'Make this a complete, directly usable prompt on the first attempt. Add a clear role, task, context, constraints, output format, and success criteria when useful.',
+        ? 'Preserve the existing intent, task type, and structure, but tighten weak wording, remove duplication, fill obvious gaps, and make the prompt ready to use without another refinement pass.'
+        : 'Make this a complete, directly usable prompt on the first attempt while preserving the requested action and deliverable. Add a clear role, task, context, constraints, output format, and success criteria when useful.',
     },
     {
       question: 'How should missing details be handled?',
-      answer: 'Make practical default assumptions from the user text. Do not ask follow-up questions in the output. Use placeholders only for details that truly cannot be assumed.',
+      answer: 'Make practical default assumptions from the user text, but do not change the task category. Do not ask follow-up questions in the output. Use placeholders only for details that truly cannot be assumed.',
     },
     {
       question: 'Token and length budget',
@@ -74,8 +74,8 @@ function buildQualityClarifications(
 }
 
 function getOutputWordBudget(prompt: string): string {
-  if (prompt.length < 80) return '120-220';
-  if (prompt.length < 280) return '180-360';
+  if (prompt.length < 80) return '60-140';
+  if (prompt.length < 280) return '120-260';
   if (prompt.length < 1200) return '250-550';
   return '300-700';
 }
@@ -92,8 +92,8 @@ function getDomainHint(prompt: string): string {
     return 'For web/app/code tasks, include concrete deliverables, stack assumptions, responsive/accessibility expectations, file/output format, and verification criteria.';
   }
 
-  if (/\b(email|reply|message|linkedin|cover letter|proposal)\b/.test(lower)) {
-    return 'For writing tasks, include audience, tone, goal, key points, constraints, and a clear output format.';
+  if (/\b(email|reply|message|linkedin|cover letter|proposal|copy|content|caption|headline|section)\b/.test(lower)) {
+    return 'For writing or copy tasks, preserve the requested piece of text, include audience/tone/context when helpful, and avoid turning it into analysis or a report.';
   }
 
   if (/\b(image|logo|design|poster|banner|ui|ux|brand)\b/.test(lower)) {
