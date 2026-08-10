@@ -146,6 +146,7 @@ let lastInputSelection:
   | null = null;
 let floatingTimer: number | undefined;
 let busyRecoveryTimer: number | undefined;
+let toastTimer: number | undefined;
 let activeImproveRequestId: string | null = null;
 const ignoredImproveRequestIds = new Set<string>();
 let busyState:
@@ -1543,11 +1544,13 @@ function showToast(
     root.querySelector('.toast')?.appendChild(button);
   }
 
-  window.setTimeout(() => {
-    if (toastHost?.shadowRoot === root) {
-      toastHost.remove();
-      toastHost = null;
-    }
+  // The host is reused, so every toast shares one ShadowRoot. Without clearing
+  // the previous timer, an older toast's dismissal removes the newer one —
+  // which is exactly what happens when Undo is clicked near the 3.2s mark.
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toastHost?.remove();
+    toastHost = null;
   }, 3200);
 }
 

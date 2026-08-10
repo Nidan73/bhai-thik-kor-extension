@@ -7,7 +7,9 @@ export default defineConfig({
   base: './',
   build: {
     outDir: 'dist',
-    emptyDirFirst: true,
+    // Both passes write into dist/, so neither may clear it. `npm run build`
+    // cleans first instead.
+    emptyOutDir: false,
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
