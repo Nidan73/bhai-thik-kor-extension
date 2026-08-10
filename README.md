@@ -41,8 +41,10 @@ All API calls route through the background service worker → `bhaithikkor.verce
 
 ```bash
 npm install
-npm run dev      # Watch mode — rebuilds on file changes
+npm run dev      # Watch mode — both build passes, rebuilds on file changes
 npm run build    # Production build with type checking
+npm test         # Unit tests (pure logic only)
+npm run package  # Build and zip dist/ for the Chrome Web Store
 ```
 
 Load the `dist/` folder as an unpacked extension in `chrome://extensions` or `brave://extensions`.

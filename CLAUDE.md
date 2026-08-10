@@ -26,8 +26,11 @@ rewrite workflow. Trust the source, then `README.md`.
 ```bash
 npm install
 npm run typecheck    # tsc --noEmit (strict)
-npm run dev          # vite build --watch
-npm run build        # typecheck + vite build + content-script guard
+npm run dev          # both watch passes (popup/options/background, and content)
+npm run dev:content  # content-script pass only
+npm test             # vitest run — pure logic only, no chrome.* mocking
+npm run build        # typecheck + clean + both passes + content-script guard
+npm run package      # build, then zip dist/ to bhai-thik-kor-<version>.zip
 ```
 
 Load `dist/` via `chrome://extensions` → Developer mode → Load unpacked. There is no test
@@ -59,13 +62,17 @@ Normal + Guided + Tweak    capture, guards, in-page UI,      context menu, comma
 
 ### Build constraints
 
-- Vite multi-entry: `popup`, `background`, `content` → `dist/{name}.js`; manifest and icons
-  come from `public/` verbatim.
+- **Two Vite passes, both writing into `dist/`.** `vite.config.ts` builds `popup`, `options`,
+  and `background` (shared chunks allowed); `vite.content.config.ts` builds `content` alone
+  with `inlineDynamicImports` so it emits one flat file. Neither pass may clear `dist/` —
+  `npm run build` cleans once up front instead. Manifest and icons come from `public/`.
 - **`dist/content.js` must be a classic, self-contained script** — no static `import`/`export`,
-  no shared chunk. `scripts/check-content-script.mjs` enforces this after every build. That is
-  why `src/content/index.ts` duplicates constants like `WEBSITE_URL` and `buildWebsiteUrl`
-  instead of importing from `src/shared/` (type-only imports are fine — they erase).
+  no shared chunk. `scripts/check-content-script.mjs` enforces this after every build. The
+  second pass is what lets the content script import from `src/shared/` anyway.
 - Background is `"type": "module"`; content script is not.
+- `src/shared/settings.ts` (synced prefs) and `src/shared/history.ts` (local, opt-in) are the
+  single source of truth for user preferences, read by all four surfaces. Their pure halves —
+  `mergeSettings`, `pruneHistory` — hold the logic so tests need no `chrome.*` mocking.
 
 ## Backend contract (source of truth: `../prompt-generator/lib/api-schemas.ts`)
 
@@ -136,9 +143,17 @@ attachment detection near the composer (feeds hints so an attached image doesn't
 into an OCR/report request), sensitive-field guards, rate-limit display, Shadow DOM overlay
 and toasts.
 
-Not built yet: options/settings page (floating-button opt-in, privacy toggles), first-run
-privacy notice, opt-in local history, side panel, streaming/progressive result rendering,
-site-specific adapters, URL-context (`/api/extract`) support, any automated tests, Firefox
-support (`chrome.*` is used directly), and store packaging/listing assets. `content_scripts`
-currently matches `<all_urls>` at `document_idle`, which is broader than the plan's
-activeTab-first stance — revisit before store submission.
+Added for the 1.0.0 store launch (branch `feat/store-launch`): options page (floating-button
+toggle, per-site disable, replace-vs-preview, opt-in history), a per-site toggle in the popup
+footer, undo on the in-place success toast, preview mode, first-run options tab, Vitest with
+30 tests, `npm run package`, and the store listing copy in `docs/store-listing.md`.
+
+Still not built: side panel, streaming/progressive result rendering, site-specific adapters,
+URL-context (`/api/extract`) support, and Firefox support (`chrome.*` is used directly).
+`content_scripts` matches `<all_urls>` at `document_idle` by design — the settings page is the
+review justification, since users can disable the automatic UI globally or per site.
+
+Two things to know before touching the in-page UI: the overlay (`renderOverlayShell`,
+`showResultOverlay`, the in-page guided flow) was dead code until preview mode made it
+reachable, so it is largely unexercised; and **no DOM behavior has automated coverage** —
+`docs/manual-test-checklist.md` is the only verification for it.
