@@ -11,6 +11,8 @@
 import { onMessage } from '@/shared/messages';
 import { ApiClientError, apiGenerate, apiClarify, apiRefine } from '@/shared/api-client';
 import { PROMPT_MIN_CHARS } from '@/shared/constants';
+import { appendHistory, type HistoryEntry } from '@/shared/history';
+import { getSettings, setSetting } from '@/shared/settings';
 import type {
   AttachmentContext,
   Clarification,
@@ -47,12 +49,22 @@ const SENSITIVE_TAB_PATTERNS = [
 
 // ─── Context Menu Setup ─────────────────────────────────────────────────────────
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async (details) => {
   chrome.contextMenus.create({
     id: 'improve-with-btk',
     title: 'Improve with Bhai Thik Kor',
     contexts: ['selection'],
   });
+
+  if (details.reason !== 'install') return;
+
+  const settings = await getSettings();
+  if (settings.seenWelcome) return;
+
+  await setSetting('seenWelcome', true);
+  // The options page carries the privacy statement. Opening a tab is less
+  // intrusive than injecting a notice into whatever page the user is on.
+  await chrome.tabs.create({ url: chrome.runtime.getURL('src/options/index.html#privacy') });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -162,6 +174,7 @@ async function handleImproveFromMessage(
       type: 'IMPROVE_RESPONSE',
       payload: { result, rateLimit, originalText: trimmed, source, requestId },
     });
+    void recordHistory(trimmed, result.optimized_prompt, source);
   } catch (err) {
     sendResponse({
       type: 'IMPROVE_ERROR',
@@ -199,6 +212,8 @@ async function handleImproveRequest(
       type: 'IMPROVE_RESPONSE',
       payload: { result, rateLimit, originalText: trimmed, source, requestId },
     } satisfies Message).catch(() => undefined);
+
+    void recordHistory(trimmed, result.optimized_prompt, source, tabId);
   } catch (err) {
     chrome.tabs.sendMessage(tabId, {
       type: 'IMPROVE_ERROR',
@@ -253,6 +268,42 @@ async function handleRefineFromPopup(
     const error = err instanceof Error ? err.message : 'Refinement unavailable.';
     const retryAfter = err instanceof ApiClientError ? err.retryAfter : undefined;
     sendResponse({ type: 'REFINE_ERROR', payload: { error, retryAfter } });
+  }
+}
+
+// ─── History ────────────────────────────────────────────────────────────────────
+
+/**
+ * The background worker sees every generate response from every surface, so it
+ * is the only history writer. Two tabs writing the same storage key would race.
+ */
+async function recordHistory(
+  original: string,
+  optimized: string,
+  source: ImproveSource,
+  tabId?: number,
+): Promise<void> {
+  const settings = await getSettings();
+  if (!settings.historyEnabled) return;
+
+  const entry: HistoryEntry = {
+    id: createRequestId(),
+    at: Date.now(),
+    original,
+    optimized,
+    source,
+    ...(tabId === undefined ? {} : { host: await getTabHost(tabId) }),
+  };
+
+  await appendHistory(entry);
+}
+
+async function getTabHost(tabId: number): Promise<string | undefined> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    return tab.url ? new URL(tab.url).hostname : undefined;
+  } catch {
+    return undefined;
   }
 }
 
