@@ -5,6 +5,7 @@
  * renders the in-page suggestion UI, and applies replace/insert actions.
  */
 
+import { buildWebsiteUrl } from '@/shared/constants';
 import type {
   AttachmentContext,
   AttachmentKind,
@@ -17,7 +18,6 @@ import type {
 } from '@/shared/types';
 
 const PROMPT_MIN_CHARS = 3;
-const WEBSITE_URL = 'https://bhaithikkor.vercel.app';
 const CONTENT_STATE_KEY = '__btkContentState';
 const IMPROVE_TIMEOUT_MS = 50000;
 
@@ -33,21 +33,6 @@ globalState[CONTENT_STATE_KEY]?.controller.abort();
 const contentController = new AbortController();
 globalState[CONTENT_STATE_KEY] = { controller: contentController };
 cleanupTransientUi();
-
-function buildWebsiteUrl(_prompt?: string, platformId?: string, mode?: 'normal' | 'guided'): string {
-  const url = new URL(WEBSITE_URL);
-  url.searchParams.set('source', 'extension');
-
-  if (platformId?.trim()) {
-    url.searchParams.set('platform', platformId.trim());
-  }
-
-  if (mode) {
-    url.searchParams.set('mode', mode);
-  }
-
-  return url.toString();
-}
 
 type TextSnapshot = {
   text: string;

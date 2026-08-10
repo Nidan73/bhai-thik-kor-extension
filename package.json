@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",
-    "build": "tsc --noEmit && vite build && node scripts/check-content-script.mjs",
+    "dev:content": "vite build --config vite.content.config.ts --watch",
+    "build": "tsc --noEmit && vite build && vite build --config vite.content.config.ts && node scripts/check-content-script.mjs",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
