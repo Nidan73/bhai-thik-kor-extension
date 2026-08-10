@@ -565,3 +565,22 @@ body::-webkit-scrollbar-thumb { background: var(--btk-border); border-radius: 4p
   color: var(--btk-muted);
   font-style: italic;
 }
+
+/* ─── Footer Site Toggle ─────────────────────────────────────────────────────── */
+
+.site-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--btk-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.site-toggle input {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--btk-primary);
+}
+
+.site-toggle:hover { color: var(--btk-text); }

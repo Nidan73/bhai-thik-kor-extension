@@ -14,6 +14,7 @@ import {
   PROMPT_MIN_CHARS,
   REFINE_INSTRUCTION_MAX_CHARS,
 } from '@/shared/constants';
+import { MAX_DISABLED_HOSTS, getSettings, isHostDisabled, setSetting } from '@/shared/settings';
 import type {
   Message,
   GenerateResult,
@@ -56,6 +57,9 @@ const errorMessage = $<HTMLElement>('error-message');
 const btnRetry = $<HTMLButtonElement>('btn-retry');
 
 const rateLimitInfo = $<HTMLElement>('rate-limit-info');
+const siteToggle = $<HTMLLabelElement>('site-toggle');
+const siteToggleInput = $<HTMLInputElement>('site-toggle-input');
+const siteToggleLabel = $<HTMLElement>('site-toggle-label');
 
 // ─── State ──────────────────────────────────────────────────────────────────────
 
@@ -472,6 +476,53 @@ function handleNewPrompt() {
   inputPrompt.focus();
 }
 
+// ─── Site Toggle ────────────────────────────────────────────────────────────────
+
+let activeHost = '';
+
+async function initSiteToggle() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url) return;
+
+  try {
+    activeHost = new URL(tab.url).hostname;
+  } catch {
+    return;
+  }
+
+  if (!activeHost) return;
+
+  const settings = await getSettings();
+  siteToggleInput.checked = isHostDisabled(settings, activeHost);
+  siteToggleLabel.textContent = `Disable on ${activeHost}`;
+  siteToggle.classList.remove('hidden');
+}
+
+async function handleSiteToggle() {
+  const settings = await getSettings();
+  const disabled = siteToggleInput.checked;
+  const hosts = settings.disabledHosts.filter(host => host !== activeHost);
+
+  if (disabled && hosts.length >= MAX_DISABLED_HOSTS) {
+    siteToggleInput.checked = false;
+    showActionStatus(`You can disable at most ${MAX_DISABLED_HOSTS} sites.`, 'error');
+    return;
+  }
+
+  const ok = await setSetting('disabledHosts', disabled ? [...hosts, activeHost] : hosts);
+
+  if (!ok) {
+    siteToggleInput.checked = !disabled;
+    showActionStatus('Could not save that setting.', 'error');
+    return;
+  }
+
+  showActionStatus(
+    disabled ? `Floating button off for ${activeHost}.` : `Floating button on for ${activeHost}.`,
+    'success',
+  );
+}
+
 // ─── Init ───────────────────────────────────────────────────────────────────────
 
 function init() {
@@ -502,6 +553,8 @@ function init() {
   btnRetry.addEventListener('click', handleRetry);
   btnBackGuided.addEventListener('click', () => showSection(sectionInput));
   btnGuidedSubmit.addEventListener('click', handleGuidedSubmit);
+  siteToggleInput.addEventListener('change', handleSiteToggle);
+  void initSiteToggle();
 
   // Load cached rate limit
   chrome.storage.local.get('lastRateLimit', (data) => {
