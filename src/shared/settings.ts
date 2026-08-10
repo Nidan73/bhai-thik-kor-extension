@@ -83,9 +83,27 @@ export async function setSetting<K extends keyof Settings>(
   }
 }
 
-export function onSettingsChanged(callback: (settings: Settings) => void): void {
-  chrome.storage.onChanged.addListener((changes, area) => {
+/**
+ * `signal` lets a re-injected content script drop the previous instance's
+ * listener. Without it both instances stay live and fight over the UI.
+ */
+export function onSettingsChanged(
+  callback: (settings: Settings) => void,
+  signal?: AbortSignal,
+): void {
+  const listener = (
+    changes: Record<string, chrome.storage.StorageChange>,
+    area: string,
+  ) => {
     if (area !== 'sync' || !changes[SETTINGS_KEY]) return;
     callback(mergeSettings(changes[SETTINGS_KEY].newValue));
-  });
+  };
+
+  chrome.storage.onChanged.addListener(listener);
+
+  signal?.addEventListener(
+    'abort',
+    () => chrome.storage.onChanged.removeListener(listener),
+    { once: true },
+  );
 }

@@ -186,7 +186,7 @@ onSettingsChanged((settings) => {
   } else {
     hideFloatingButton();
   }
-});
+}, contentController.signal);
 
 function isFloatingAllowed(): boolean {
   return currentSettings.floatingButton && !isHostDisabled(currentSettings, window.location.hostname);

@@ -113,7 +113,11 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // ─── Message Router ─────────────────────────────────────────────────────────────
 
-onMessage((message: Message, _sender, sendResponse) => {
+onMessage((message: Message, sender, sendResponse) => {
+  // Content-script senders carry a tab; the popup does not. Used to stamp a
+  // hostname onto history entries.
+  const senderTabId = sender.tab?.id;
+
   switch (message.type) {
     case 'IMPROVE_REQUEST':
       handleImproveFromMessage(
@@ -122,6 +126,7 @@ onMessage((message: Message, _sender, sendResponse) => {
         sendResponse,
         message.payload.requestId,
         message.payload.attachmentContext,
+        senderTabId,
       );
       return true;
 
@@ -134,6 +139,7 @@ onMessage((message: Message, _sender, sendResponse) => {
         message.payload.text,
         message.payload.clarifications,
         sendResponse,
+        senderTabId,
       );
       return true;
 
@@ -155,6 +161,7 @@ async function handleImproveFromMessage(
   sendResponse: (response: unknown) => void,
   requestId = createRequestId(),
   attachmentContext?: AttachmentContext,
+  tabId?: number,
 ) {
   const trimmed = text.trim();
 
@@ -175,7 +182,7 @@ async function handleImproveFromMessage(
       type: 'IMPROVE_RESPONSE',
       payload: { result, rateLimit, originalText: trimmed, source, requestId },
     });
-    void recordHistory(trimmed, result.optimized_prompt, source);
+    void recordHistory(trimmed, result.optimized_prompt, source, tabId);
   } catch (err) {
     sendResponse({
       type: 'IMPROVE_ERROR',
@@ -240,6 +247,7 @@ async function handleGenerateWithClarifications(
   text: string,
   clarifications: Clarification[],
   sendResponse: (response: unknown) => void,
+  tabId?: number,
 ) {
   const trimmed = text.trim();
 
@@ -249,6 +257,7 @@ async function handleGenerateWithClarifications(
       type: 'IMPROVE_RESPONSE',
       payload: { result, rateLimit, originalText: trimmed, source: 'popup' },
     });
+    void recordHistory(trimmed, result.optimized_prompt, 'popup', tabId);
   } catch (err) {
     sendResponse({
       type: 'IMPROVE_ERROR',
@@ -276,7 +285,8 @@ async function handleRefineFromPopup(
 
 /**
  * The background worker sees every generate response from every surface, so it
- * is the only history writer. Two tabs writing the same storage key would race.
+ * is the only history writer. That rules out cross-tab races; overlapping
+ * writes inside this worker are serialized by the queue in shared/history.ts.
  */
 async function recordHistory(
   original: string,
