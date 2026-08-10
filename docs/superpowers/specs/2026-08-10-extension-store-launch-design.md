@@ -22,7 +22,7 @@ submission accepted.
 | Settings surface | Full options page, four sections | Requested. Polished, not minimal. |
 | Default improve behavior | `replace` (in place), with undo | Preserves the current signature UX; undo defuses the "it overwrote my text" failure mode without slowing everyone down. |
 | History | Opt-in, off by default, local only | Prompt text must not leave the machine or sync. |
-| Content-script refactor | Extract `attachments.ts` and `floating.ts` only | The rest works and has no tests. Refactor further only when a task touches that code. |
+| Content-script refactor | Extract `attachments.ts` only | The rest works and has no tests. A `floating.ts` extraction was considered and rejected: that code touches 13 symbols outside itself and `hideFloatingButton()` is called from the busy-state code and the message handler, so extracting it needs a params object or circular imports. Its settings gate is ~5 lines in place. |
 | Settings storage | `chrome.storage.sync` for prefs, `chrome.storage.local` for history | Prefs should follow the profile; history should not. |
 
 Explicitly cut as speculative: a `version` field on the settings schema (nothing to migrate),
@@ -61,17 +61,22 @@ New:
 - `src/shared/history.ts` — read, append-with-prune, clear.
 - `src/options/{index.html,index.ts,styles.css}` — options page, reusing the popup's CSS
   custom properties.
-- `src/content/attachments.ts` — moved verbatim from `src/content/index.ts` (attachment
-  detection, ~300 lines, imported by nothing else today).
-- `src/content/floating.ts` — moved: floating button rendering, positioning,
-  `looksPromptLike`, and the new settings gate.
+- `src/content/attachments.ts` — attachment detection moved out of `src/content/index.ts`
+  (~300 lines). It is not self-contained today: it reads the `lastCaptureTarget` /
+  `lastActiveEditable` module state and calls `getActiveEditable`, `getVisualContainer`, and
+  `isUsableVisualContainer`. The extracted entry point therefore becomes
+  `detectAttachmentContext(root: HTMLElement | null)`, taking an already-resolved root;
+  `getAttachmentSearchRoot` stays in `index.ts` where that module state lives. The new file is
+  then pure DOM analysis with no external dependencies.
 
-Unchanged: the rest of `src/content/index.ts`, `src/background/index.ts`,
-`src/shared/api-client.ts`, `src/shared/prompt-quality.ts`, `src/popup/*` (except the one new
-footer control).
+Unchanged: the rest of `src/content/index.ts` (including the floating button, busy state,
+mutation, overlay, and toast code), `src/background/index.ts`, `src/shared/api-client.ts`,
+`src/shared/prompt-quality.ts`, `src/popup/*` (except the one new footer control).
 
-Manifest: add `options_ui` with `open_in_tab: true`. No new permissions — `storage` is already
-declared.
+Manifest: add `options_ui` with `open_in_tab: true` and
+`page: "src/options/index.html"` — Vite preserves the HTML source path, so the options page
+builds to `dist/src/options/index.html`, mirroring how `default_popup` points at
+`src/popup/index.html` today. No new permissions — `storage` is already declared.
 
 ## Settings
 
@@ -87,9 +92,10 @@ type Settings = {
 };
 ```
 
-`getSettings()` merges stored values over `DEFAULT_SETTINGS`; it never throws and never returns
-undefined. `setSetting(key, value)` writes one key. `onSettingsChanged(cb)` wraps
-`chrome.storage.onChanged` filtered to the sync area.
+The merge logic is a pure exported function, `mergeSettings(stored: unknown): Settings`, so it
+can be tested without mocking `chrome.storage`. `getSettings()` is the thin IO wrapper around
+it; it never throws and never returns undefined. `setSetting(key, value)` writes one key.
+`onSettingsChanged(cb)` wraps `chrome.storage.onChanged` filtered to the sync area.
 
 ### History
 
@@ -100,11 +106,13 @@ type HistoryEntry = {
   original: string;
   optimized: string;
   source: ImproveSource;
-  host: string;
+  host?: string;   // absent for popup-originated improves, which have no tab context
 };
 ```
 
-Stored in `chrome.storage.local` under one key, newest first, pruned to 50 on every append.
+Stored in `chrome.storage.local` under one key, newest first, pruned to 50 on every append by
+a pure exported `pruneHistory(entries)` — the same split as `mergeSettings`, so the cap is
+testable without storage.
 Written only when `historyEnabled` is true. Turning history off deletes the stored entries in
 the same operation — an off switch that leaves data behind is not an off switch.
 
@@ -139,13 +147,24 @@ settings.
 getSelectedText() → startBusyState(requestId) → background
   → apiGenerate → IMPROVE_RESPONSE{requestId}
   → stopBusyState(requestId) → replaceText(optimized)
-  → showToast("Prompt improved in place", 'success', { undo: () => replaceText(original) })
+  → showToast("Prompt improved in place", 'success', { undo })
   → background appends a history entry if historyEnabled
 ```
 
 `showToast` gains an optional third argument for an action button; it stays in
 `src/content/index.ts` alongside the busy-state and mutation functions, which are not being
 extracted in this phase.
+
+**Undo restores a full-field snapshot, not the captured text.** `replaceText(originalText)`
+would be a data-loss bug: when the improve ran on a selection inside a larger field, the
+optimized text was spliced into that selection, and by undo time the selection is collapsed —
+so `replaceText` would overwrite the *entire field* with just the original fragment. Instead,
+the full `value` of the target is snapshotted immediately before mutation and written back with
+`setNativeValue` + `dispatchTextEvents` on undo.
+
+Undo is offered only when the target is an `input` or `textarea`. For `contenteditable`,
+restoring through `innerText` would flatten rich content, so those fields get the plain success
+toast with no undo button.
 
 **Improve, preview mode:** identical until the response, then `stopBusyState()` followed by the
 existing Shadow DOM result overlay. No mutation until the user clicks Replace or Insert in the
@@ -176,9 +195,9 @@ New failure modes only; existing 429 / 503 / network paths are unchanged.
   `disabledHosts` is capped at 100 hostnames, well under the 8 KB per-item limit.
 - **History write fails** — swallowed and logged, never surfaced. A full `storage.local` must not
   turn a successful improve into a visible error.
-- **Undo cannot apply** (field detached, navigated away, now blocked) — `replaceText` already
-  returns `false`; the toast says "Could not undo — the field changed." No clipboard fallback,
-  no retry.
+- **Undo cannot apply** (field detached, navigated away, now blocked) — the snapshot restore
+  checks `document.contains(target)` and `isFieldBlocked(target)` first; if either fails the
+  toast says "Could not undo — the field changed." No clipboard fallback, no retry.
 - **Preview overlay orphaned by navigation** — already covered by `cleanupTransientUi()` on
   re-injection. No new code.
 
@@ -189,9 +208,9 @@ simulating the extension runtime is not there at this size.
 
 | Under test | Why |
 |---|---|
-| `getSettings()` merge | Corrupt, partial, and empty storage must yield working defaults |
+| `mergeSettings(stored)` | Corrupt, partial, and empty storage must yield working defaults |
 | `disabledHosts` matching | Decides whether the button appears at all |
-| History prune to 50 | An off-by-one here silently grows storage forever |
+| `pruneHistory(entries)` | An off-by-one in the 50-entry cap silently grows storage forever |
 | `fitPromptToBudget`, `getOutputWordBudget`, `looksStructured`, `getDomainHint` | Existing untested logic that shapes every generated prompt |
 | `looksLikeShortImageEditCommand` | Existing heuristic with the trickiest regex in the codebase |
 
@@ -222,6 +241,13 @@ silences the button, blocked field refuses replacement.
   page. Plus the 440×280 promo tile. Icons already exist at 16/48/128.
 - **Version** — bump `manifest.json` and `package.json` to `1.0.0`; add `npm run package` to zip
   `dist/` for upload.
+
+## Known pre-existing issue, deliberately not fixed here
+
+`vite.config.ts` sets `build.emptyDirFirst: true`, which is not a Vite option — the real name is
+`emptyOutDir`. Stale files in `dist/` are therefore never cleared. Harmless in practice because
+every entry is rewritten on each build, but worth fixing in a change that owns the build config
+rather than smuggling it into this one.
 
 ## Out of scope
 
