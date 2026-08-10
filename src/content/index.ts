@@ -6,6 +6,13 @@
  */
 
 import { buildWebsiteUrl } from '@/shared/constants';
+import {
+  DEFAULT_SETTINGS,
+  getSettings,
+  isHostDisabled,
+  onSettingsChanged,
+  type Settings,
+} from '@/shared/settings';
 import { detectAttachmentContext } from './attachments';
 import type {
   AttachmentContext,
@@ -158,6 +165,31 @@ let busyState:
       };
     }
   | null = null;
+
+// ─── Settings Cache ─────────────────────────────────────────────────────────────
+
+// The floating-button check runs on every debounced focus/input/scroll event and
+// cannot await a storage read, so settings are cached in memory and refreshed
+// through onSettingsChanged.
+let currentSettings: Settings = DEFAULT_SETTINGS;
+
+void getSettings().then((settings) => {
+  currentSettings = settings;
+  scheduleFloatingUpdate();
+});
+
+onSettingsChanged((settings) => {
+  currentSettings = settings;
+  if (isFloatingAllowed()) {
+    scheduleFloatingUpdate();
+  } else {
+    hideFloatingButton();
+  }
+});
+
+function isFloatingAllowed(): boolean {
+  return currentSettings.floatingButton && !isHostDisabled(currentSettings, window.location.hostname);
+}
 
 // ─── Sensitive Field Guards ─────────────────────────────────────────────────────
 
@@ -1139,6 +1171,11 @@ function scheduleFloatingUpdate() {
 }
 
 function updateFloatingButton() {
+  if (!isFloatingAllowed()) {
+    hideFloatingButton();
+    return;
+  }
+
   if (busyState) {
     hideFloatingButton();
     return;
