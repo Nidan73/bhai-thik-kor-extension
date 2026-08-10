@@ -485,7 +485,11 @@ async function initSiteToggle() {
   if (!tab?.url) return;
 
   try {
-    activeHost = new URL(tab.url).hostname;
+    const url = new URL(tab.url);
+    // chrome://, file://, and extension pages never run the content script, and
+    // their "hostname" would be junk like "extensions" in the disabled list.
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
+    activeHost = url.hostname;
   } catch {
     return;
   }

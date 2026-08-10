@@ -38,6 +38,10 @@ const optStatus = $<HTMLParagraphElement>('opt-status');
 
 let settings: Settings;
 let statusTimer: number | undefined;
+// Listeners are registered at module scope, but `settings` only exists once the
+// storage round-trip finishes. Acting before that would throw and then persist a
+// partial object.
+let ready = false;
 
 // ─── Status ─────────────────────────────────────────────────────────────────────
 
@@ -53,6 +57,8 @@ function showStatus(message: string, tone: 'success' | 'error') {
 
 /** Writes revert the control to the stored value when storage rejects them. */
 async function write<K extends keyof Settings>(key: K, value: Settings[K]): Promise<boolean> {
+  if (!ready) return false;
+
   const ok = await setSetting(key, value);
 
   if (!ok) {
@@ -98,6 +104,7 @@ function normalizeHost(value: string): string {
 
 optHostForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (!ready) return;
 
   const host = normalizeHost(optHostInput.value);
   if (!host) {
@@ -205,8 +212,12 @@ function createHistoryItem(entry: HistoryEntry): HTMLLIElement {
   copy.className = 'btn link';
   copy.textContent = 'Copy';
   copy.addEventListener('click', async () => {
-    await navigator.clipboard.writeText(entry.optimized);
-    showStatus('Copied.', 'success');
+    try {
+      await navigator.clipboard.writeText(entry.optimized);
+      showStatus('Copied.', 'success');
+    } catch {
+      showStatus('Could not copy. Select the text and copy manually.', 'error');
+    }
   });
 
   const remove = document.createElement('button');
@@ -236,6 +247,7 @@ function render() {
 
 async function init() {
   settings = await getSettings();
+  ready = true;
   render();
   if (settings.historyEnabled) await renderHistory();
 }
