@@ -1373,6 +1373,12 @@ async function improveActiveField() {
 
     if (response?.type === 'IMPROVE_RESPONSE') {
       if (!stopBusyState(requestId)) return;
+
+      if (currentSettings.improveBehavior === 'preview') {
+        showResultOverlay(response.payload.result, text);
+        return;
+      }
+
       const snapshot = captureUndoSnapshot();
       replaceText(response.payload.result.optimized_prompt);
       showImprovedToast(snapshot);
@@ -1609,6 +1615,11 @@ chrome.runtime.onMessage.addListener(
         closeOverlay();
         hideFloatingButton();
         if (!stopBusyState(message.payload.requestId)) return false;
+        if (currentSettings.improveBehavior === 'preview') {
+          showResultOverlay(message.payload.result, message.payload.originalText || '');
+          return false;
+        }
+
         const snapshot = captureUndoSnapshot();
         const success = replaceText(message.payload.result.optimized_prompt);
         if (!success) {
