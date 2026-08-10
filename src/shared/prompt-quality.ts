@@ -26,7 +26,7 @@ export function prepareGenerateRequest(
   };
 }
 
-function fitPromptToBudget(prompt: string): { prompt: string; wasTrimmed: boolean } {
+export function fitPromptToBudget(prompt: string): { prompt: string; wasTrimmed: boolean } {
   if (prompt.length <= PROMPT_MAX_CHARS) {
     return { prompt, wasTrimmed: false };
   }
@@ -73,19 +73,19 @@ function buildQualityClarifications(
   ];
 }
 
-function getOutputWordBudget(prompt: string): string {
+export function getOutputWordBudget(prompt: string): string {
   if (prompt.length < 80) return '60-140';
   if (prompt.length < 280) return '120-260';
   if (prompt.length < 1200) return '250-550';
   return '300-700';
 }
 
-function looksStructured(prompt: string): boolean {
+export function looksStructured(prompt: string): boolean {
   return /(^|\n)\s*(role|task|objective|context|constraints?|requirements?|format|output|deliverables?)\s*[:#]/i
     .test(prompt);
 }
 
-function getDomainHint(prompt: string): string {
+export function getDomainHint(prompt: string): string {
   const lower = prompt.toLowerCase();
 
   if (/\b(web|website|app|frontend|backend|full[-\s]?stack|html|css|javascript|react|next\.?js|api|database)\b/.test(lower)) {
