@@ -458,6 +458,58 @@ function replaceContentEditable(el: HTMLElement, newText: string): boolean {
   return true;
 }
 
+// ─── Undo Snapshot ──────────────────────────────────────────────────────────────
+
+type UndoSnapshot = {
+  target: HTMLInputElement | HTMLTextAreaElement;
+  value: string;
+};
+
+/**
+ * Snapshot the whole field before mutating. Restoring the captured *selection*
+ * instead would wipe the rest of the field: by undo time the selection is
+ * collapsed, so replaceText() would overwrite everything.
+ *
+ * contenteditable is deliberately unsupported — restoring through innerText
+ * would flatten rich content.
+ */
+function captureUndoSnapshot(): UndoSnapshot | null {
+  const target = getMutationTarget();
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+    return { target, value: target.value };
+  }
+
+  return null;
+}
+
+function restoreUndoSnapshot(snapshot: UndoSnapshot): boolean {
+  const { target, value } = snapshot;
+  if (!document.contains(target) || isFieldBlocked(target)) return false;
+
+  setNativeValue(target, value);
+  target.setSelectionRange(value.length, value.length);
+  dispatchTextEvents(target);
+  return true;
+}
+
+function showImprovedToast(snapshot: UndoSnapshot | null) {
+  if (!snapshot) {
+    showToast('Prompt improved in place.', 'success');
+    return;
+  }
+
+  showToast('Prompt improved in place.', 'success', {
+    label: 'Undo',
+    onClick: () => {
+      if (restoreUndoSnapshot(snapshot)) {
+        showToast('Reverted to your original text.', 'info');
+      } else {
+        showToast('Could not undo — the field changed.', 'error');
+      }
+    },
+  });
+}
+
 function replaceText(newText: string): boolean {
   const target = getMutationTarget();
   if (!target || isFieldBlocked(target)) return false;
@@ -1321,8 +1373,9 @@ async function improveActiveField() {
 
     if (response?.type === 'IMPROVE_RESPONSE') {
       if (!stopBusyState(requestId)) return;
+      const snapshot = captureUndoSnapshot();
       replaceText(response.payload.result.optimized_prompt);
-      showToast('Prompt improved in place.', 'success');
+      showImprovedToast(snapshot);
     } else {
       if (!stopBusyState(requestId)) return;
       showToast(response?.payload?.error || 'Failed to improve prompt.', 'error');
@@ -1400,7 +1453,11 @@ function ensureBusyStyle() {
   document.documentElement.appendChild(style);
 }
 
-function showToast(message: string, tone: 'success' | 'error' | 'info' = 'info') {
+function showToast(
+  message: string,
+  tone: 'success' | 'error' | 'info' = 'info',
+  action?: { label: string; onClick: () => void },
+) {
   if (!toastHost) {
     toastHost = document.createElement('div');
     toastHost.id = 'btk-toast-root';
@@ -1447,6 +1504,19 @@ function showToast(message: string, tone: 'success' | 'error' | 'info' = 'info')
         box-shadow: 0 0 14px ${accent};
         flex: 0 0 auto;
       }
+      .action {
+        margin-left: 4px;
+        padding: 4px 10px;
+        border: 1px solid ${accent};
+        border-radius: 999px;
+        background: transparent;
+        color: #fffdf8;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 650;
+        flex: 0 0 auto;
+      }
+      .action:hover { background: rgba(255, 253, 248, 0.12); }
     </style>
     <div class="toast" role="status" aria-live="polite">
       <span class="dot" aria-hidden="true"></span>
@@ -1455,6 +1525,17 @@ function showToast(message: string, tone: 'success' | 'error' | 'info' = 'info')
   `;
   const messageEl = root.querySelector('.message');
   if (messageEl) messageEl.textContent = message;
+
+  if (action) {
+    const button = document.createElement('button');
+    button.className = 'action';
+    button.type = 'button';
+    button.textContent = action.label;
+    button.addEventListener('click', () => {
+      action.onClick();
+    });
+    root.querySelector('.toast')?.appendChild(button);
+  }
 
   window.setTimeout(() => {
     if (toastHost?.shadowRoot === root) {
@@ -1528,11 +1609,12 @@ chrome.runtime.onMessage.addListener(
         closeOverlay();
         hideFloatingButton();
         if (!stopBusyState(message.payload.requestId)) return false;
+        const snapshot = captureUndoSnapshot();
         const success = replaceText(message.payload.result.optimized_prompt);
         if (!success) {
           showToast('Could not replace text in this field.', 'error');
         } else {
-          showToast('Prompt improved in place.', 'success');
+          showImprovedToast(snapshot);
         }
         return false;
       }
