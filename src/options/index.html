@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bhai Thik Kor — Settings</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <span class="logo-icon">🍉</span>
+      <h1>Bhai Thik Kor Settings</h1>
+    </header>
+
+    <section class="card" id="general">
+      <h2>General</h2>
+
+      <label class="row">
+        <span>
+          <strong>Floating button</strong>
+          <small>Show the watermelon button next to text boxes that look like prompts.</small>
+        </span>
+        <input type="checkbox" id="opt-floating">
+      </label>
+
+      <fieldset class="row-block">
+        <legend><strong>When you improve text</strong></legend>
+        <label class="radio">
+          <input type="radio" name="behavior" value="replace" id="opt-behavior-replace">
+          <span>Replace in place <small>Fastest. Undo is offered afterwards.</small></span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="behavior" value="preview" id="opt-behavior-preview">
+          <span>Show the result card first <small>Nothing changes until you click Replace.</small></span>
+        </label>
+      </fieldset>
+
+      <p class="hint">
+        Shortcuts: <kbd>Alt</kbd>+<kbd>I</kbd> improves the selected or focused text,
+        <kbd>Alt</kbd>+<kbd>B</kbd> opens the extension.
+        <a href="#" id="opt-shortcuts-link">Change shortcuts</a>
+      </p>
+    </section>
+
+    <section class="card" id="sites">
+      <h2>Sites</h2>
+      <p class="hint">The floating button never appears on these sites. The right-click menu and
+        <kbd>Alt</kbd>+<kbd>I</kbd> keep working.</p>
+      <form class="add-row" id="opt-host-form">
+        <input type="text" id="opt-host-input" placeholder="example.com" autocomplete="off">
+        <button type="submit" class="btn">Add</button>
+      </form>
+      <ul class="list" id="opt-host-list"></ul>
+      <p class="empty" id="opt-host-empty">No sites disabled.</p>
+    </section>
+
+    <section class="card" id="history">
+      <h2>History</h2>
+      <label class="row">
+        <span>
+          <strong>Keep a local history</strong>
+          <small>Stores your last 50 prompts on this device only. Off by default.</small>
+        </span>
+        <input type="checkbox" id="opt-history">
+      </label>
+      <div id="opt-history-panel" class="hidden">
+        <div class="add-row">
+          <button type="button" class="btn danger" id="opt-history-clear">Clear all</button>
+        </div>
+        <ul class="list" id="opt-history-list"></ul>
+        <p class="empty" id="opt-history-empty">Nothing saved yet.</p>
+      </div>
+    </section>
+
+    <section class="card" id="privacy">
+      <h2>Privacy</h2>
+      <ul class="prose">
+        <li>Your text is sent only when you ask for an improvement — never as you type.</li>
+        <li>It goes only to bhaithikkor.vercel.app, which improves it and sends it back.</li>
+        <li>Page content is never read or uploaded on its own.</li>
+        <li>Password, payment, one-time-code, banking, and medical fields are skipped entirely.</li>
+        <li>Your text is never added to a website URL.</li>
+        <li>History is stored on this device only, and is off unless you turn it on.</li>
+      </ul>
+      <p class="hint"><a href="https://bhaithikkor.vercel.app/privacy" target="_blank" rel="noopener noreferrer">Full privacy policy</a></p>
+    </section>
+
+    <p class="status" id="opt-status" role="status" aria-live="polite"></p>
+  </main>
+
+  <script type="module" src="./index.ts"></script>
+</body>
+</html>
