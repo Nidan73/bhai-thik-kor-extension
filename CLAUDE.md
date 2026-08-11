@@ -71,18 +71,42 @@ Normal + Guided + Tweak    capture, guards, in-page UI,      context menu, comma
 
 | Endpoint | Method | Request | Response | Rate limit |
 |----------|--------|---------|----------|------------|
-| `/api/generate` | POST | `{ prompt, clarifications: {question,answer}[] }` (max 6, prompt ≤ 4000 chars) | **text stream** whose full body is the JSON `{ optimized_prompt, routing: { open_source, freemium, premium } }` | 50/IP/day |
+| `/api/generate` | POST | `{ prompt, clarifications: {question,answer}[] }` (max 10, prompt ≤ 4000 chars) | **text stream** whose full body is the JSON `{ optimized_prompt, routing: { open_source, freemium, premium } }` | 50/IP/day |
 | `/api/clarify` | POST | `{ prompt }` | plain JSON array of `{ id, question, options[≤4] }` | 3/IP/min |
 | `/api/refine` | POST | `{ currentPrompt (≤6000), instruction (≤500) }` | text stream of the refined prompt | 5/IP/min |
 | `/api/health` | GET | — | `{ status, checks }` | — |
 | `/api/extract` | POST | `{ url }` | URL context (**unused by the extension**) | 5/IP/min |
 
-`generate` and `refine` use `toTextStreamResponse()`, so the client reads the body to
+`generate` and `refine` stream text, so the client reads the body to
 completion and parses at the end (`consumeTextStream`). Rate-limit state comes from
 `X-RateLimit-{Limit,Remaining,Reset}`; 429 also carries `Retry-After`. Errors are
 `{ error, retryAfter? }` with 429 (limited) / 503 (all providers busy) / 400 (validation).
 
 Mirror limit constants in `src/shared/constants.ts` when the backend schema changes.
+
+### The clarification cap is the sharp edge here
+
+`prompt-quality.ts` appends **4** quality clarifications to whatever the user answered, and
+Guided Mode contributes **3**. That is 7 per guided generate. The backend cap was 6 until
+2026-08-11, so guided mode returned 400 for every extension user; it was raised to 10 to give
+headroom. If either side grows, guided mode breaks again with no local symptom — the failure
+only appears against the deployed API.
+
+`MAX_CLARIFICATIONS` is **not** mirrored in `src/shared/constants.ts`. Nothing enforces the
+relationship in either repo, so a change to the number of quality clarifications needs a
+deliberate check against the backend cap.
+
+### Backend behaviour worth knowing (as of 2026-08-11)
+
+- All `/api/*` routes run on the Node runtime, not edge. No client-visible change.
+- Validation now runs **before** rate limiting, so a malformed request returns 400 without
+  consuming quota. Retrying after a client-side validation bug no longer costs the user's day.
+- Rate limiting **fails open** if Upstash is unreachable, so absent `X-RateLimit-*` headers
+  mean "unmetered", not "no limit exists".
+- A provider dying mid-stream still yields a 200 with a truncated body. `apiGenerate` surfaces
+  that as "Failed to parse AI response" — this is expected, not a client bug.
+- `API_TIMEOUT_MS` is 45s while the backend's `maxDuration` is 60s. A request walking deep into
+  the provider fallback chain can be abandoned client-side before the server gives up.
 
 ## User-facing flows
 
