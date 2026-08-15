@@ -1,115 +1,82 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Outer Deep Emerald Rind -->
-    <linearGradient id="rindGreen" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#025a3a" />
-      <stop offset="40%" stop-color="#059669" />
-      <stop offset="80%" stop-color="#10B981" />
-      <stop offset="100%" stop-color="#34D399" />
+    <!-- Emerald Rind Spine Gradient -->
+    <linearGradient id="bSpine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="50%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#047857" />
     </linearGradient>
 
-    <!-- Rind 3D Thickness / Underside Depth -->
-    <linearGradient id="rindUnderDepth" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#013824" />
-      <stop offset="100%" stop-color="#002417" />
+    <!-- Upper Watermelon Lobe (Electric Crimson-Pink) -->
+    <linearGradient id="upperLobe" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5277" />
+      <stop offset="100%" stop-color="#E11D48" />
     </linearGradient>
 
-    <!-- Inner Crisp White/Lime Rind Ring -->
-    <linearGradient id="rindWhite" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#e6fffa" />
-      <stop offset="50%" stop-color="#ffffff" />
-      <stop offset="100%" stop-color="#ccfbf1" />
+    <!-- Lower Watermelon Lobe (Deep Coral-Ruby) -->
+    <linearGradient id="lowerLobe" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF3366" />
+      <stop offset="100%" stop-color="#BE123C" />
     </linearGradient>
 
-    <!-- Rich Juicy Red/Coral Watermelon Flesh -->
-    <radialGradient id="fleshJuice" cx="45%" cy="40%" r="65%">
-      <stop offset="0%" stop-color="#FF3864" />
-      <stop offset="30%" stop-color="#FF1A4B" />
-      <stop offset="70%" stop-color="#E11D48" />
-      <stop offset="100%" stop-color="#9F1239" />
-    </radialGradient>
-
-    <!-- 3D Flesh Edge Depth Extrusion -->
-    <linearGradient id="fleshSideDepth" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#881337" />
-      <stop offset="100%" stop-color="#4C0519" />
+    <!-- Crisp White Separation Rim -->
+    <linearGradient id="whiteRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#d1fae5" />
     </linearGradient>
 
-    <!-- Specular Gloss Sheen -->
-    <linearGradient id="glossSheen" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5" />
-      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.12" />
-      <stop offset="70%" stop-color="#ffffff" stop-opacity="0" />
-    </linearGradient>
+    <!-- Soft Brand Drop Shadow -->
+    <filter id="bShadow" x="-20%" y="-15%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#E11D48" flood-opacity="0.28" />
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#10B981" flood-opacity="0.2" />
+    </filter>
 
-    <!-- Realistic 3D Obsidian Seed Gradient -->
-    <radialGradient id="seedBlack" cx="35%" cy="30%" r="70%">
-      <stop offset="0%" stop-color="#64748b" />
-      <stop offset="35%" stop-color="#334155" />
-      <stop offset="80%" stop-color="#0f172a" />
+    <!-- Obsidian Seed Gradient -->
+    <radialGradient id="seedDark" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="50%" stop-color="#0f172a" />
       <stop offset="100%" stop-color="#020617" />
     </radialGradient>
-
-    <!-- Soft Drop Shadow for the standalone icon -->
-    <filter id="naturalShadow" x="-20%" y="-15%" width="140%" height="145%">
-      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#000000" flood-opacity="0.32" />
-      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#FF1A4B" flood-opacity="0.18" />
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.2" />
-    </filter>
-
-    <!-- Seed Drop Shadow -->
-    <filter id="seedDrop" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="1" dy="3" stdDeviation="2.5" flood-color="#4C0519" flood-opacity="0.5" />
-    </filter>
   </defs>
 
-  <!-- Main Centered Watermelon Slice Group (No background container) -->
-  <g transform="translate(256, 252) rotate(-8) translate(-256, -256)" filter="url(#naturalShadow)">
+  <g transform="translate(45, 30)" filter="url(#bShadow)">
     
-    <!-- 1. 3D Bottom Thickness / Extrusion -->
-    <!-- Rind Bottom Underside -->
-    <path d="M 46 392 C 104 472, 408 472, 466 392 L 476 414 C 412 498, 100 498, 36 414 Z" fill="url(#rindUnderDepth)" />
-    <!-- Left Slice Wall Extrusion -->
-    <path d="M 46 392 L 256 94 L 264 110 L 36 414 Z" fill="url(#fleshSideDepth)" opacity="0.95" />
-    <!-- Right Slice Wall Extrusion -->
-    <path d="M 256 94 L 466 392 L 476 414 L 264 110 Z" fill="url(#fleshSideDepth)" />
+    <!-- ── 1. Left Vertical Emerald Rind Spine (The "B" Stem) ── -->
+    <rect x="70" y="50" width="46" height="390" rx="23" fill="url(#bSpine)" />
 
-    <!-- 2. Front Face: Emerald Green Rind Arc -->
-    <path d="M 46 392 C 104 472, 408 472, 466 392 L 256 94 Z" fill="url(#rindGreen)" />
+    <!-- ── 2. Upper Watermelon Lobe ── -->
+    <!-- White Rind Border -->
+    <path
+      d="M 116 50 L 230 50 C 300 50, 340 95, 340 155 C 340 215, 300 248, 230 248 L 116 248 Z"
+      fill="url(#whiteRim)"
+    />
+    <!-- Red Flesh Core -->
+    <path
+      d="M 116 66 L 224 66 C 284 66, 322 102, 322 155 C 322 208, 284 232, 224 232 L 116 232 Z"
+      fill="url(#upperLobe)"
+    />
+    <!-- Upper Lobe Teardrop Seed (Negative / Obsidian) -->
+    <ellipse cx="206" cy="155" rx="14" ry="22" transform="rotate(18 206 155)" fill="url(#seedDark)" />
+    <circle cx="203" cy="148" r="4" fill="#ffffff" opacity="0.75" />
 
-    <!-- Subtle Striped Rind Accents -->
-    <path d="M 120 426 Q 130 442 142 448 L 152 444 Q 140 436 130 422 Z" fill="#025a3a" opacity="0.6" />
-    <path d="M 240 448 Q 256 454 272 448 L 270 440 Q 256 446 242 440 Z" fill="#025a3a" opacity="0.6" />
-    <path d="M 370 426 Q 380 436 392 444 L 382 448 Q 370 442 360 422 Z" fill="#025a3a" opacity="0.6" />
+    <!-- ── 3. Lower Watermelon Lobe ── -->
+    <!-- White Rind Border -->
+    <path
+      d="M 116 236 L 246 236 C 322 236, 368 280, 368 348 C 368 416, 322 440, 246 440 L 116 440 Z"
+      fill="url(#whiteRim)"
+    />
+    <!-- Red Flesh Core -->
+    <path
+      d="M 116 252 L 238 252 C 306 252, 348 290, 348 348 C 348 406, 306 424, 238 424 L 116 424 Z"
+      fill="url(#lowerLobe)"
+    />
+    <!-- Lower Lobe Teardrop Seed 1 -->
+    <ellipse cx="202" cy="348" rx="15" ry="24" transform="rotate(-15 202 348)" fill="url(#seedDark)" />
+    <circle cx="199" cy="340" r="4.5" fill="#ffffff" opacity="0.75" />
 
-    <!-- 3. Front Face: Crisp White/Lime Inner Rind -->
-    <path d="M 68 382 C 118 454, 394 454, 444 382 L 256 118 Z" fill="url(#rindWhite)" />
+    <!-- Lower Lobe Teardrop Seed 2 -->
+    <ellipse cx="264" cy="348" rx="13" ry="21" transform="rotate(15 264 348)" fill="url(#seedDark)" />
+    <circle cx="261" cy="341" r="3.5" fill="#ffffff" opacity="0.75" />
 
-    <!-- 4. Front Face: Juicy Ruby Red Flesh -->
-    <path d="M 88 370 C 132 436, 380 436, 424 370 L 256 136 Z" fill="url(#fleshJuice)" />
-
-    <!-- 5. Glassy Specular Surface Reflection -->
-    <path d="M 88 370 L 256 136 L 324 220 C 256 260, 168 310, 88 370 Z" fill="url(#glossSheen)" />
-
-    <!-- 6. Stylized Glossy Teardrop Seeds -->
-    <g filter="url(#seedDrop)">
-      <!-- Row 1 (Apex) -->
-      <path d="M 226 218 C 220 202, 224 188, 231 188 C 238 188, 243 202, 226 218 Z" fill="url(#seedBlack)" />
-      <path d="M 286 218 C 292 202, 288 188, 281 188 C 274 188, 269 202, 286 218 Z" fill="url(#seedBlack)" />
-
-      <!-- Row 2 (Mid) -->
-      <path d="M 180 286 C 173 270, 178 256, 185 256 C 192 256, 198 270, 180 286 Z" fill="url(#seedBlack)" />
-      <path d="M 256 276 C 249 260, 256 246, 263 246 C 270 246, 275 260, 256 276 Z" fill="url(#seedBlack)" />
-      <path d="M 332 286 C 339 270, 334 256, 327 256 C 320 256, 314 270, 332 286 Z" fill="url(#seedBlack)" />
-
-      <!-- Row 3 (Base) -->
-      <path d="M 142 354 C 135 338, 140 324, 147 324 C 154 324, 160 338, 142 354 Z" fill="url(#seedBlack)" />
-      <path d="M 216 350 C 209 334, 215 320, 222 320 C 229 320, 234 334, 216 350 Z" fill="url(#seedBlack)" />
-      <path d="M 296 350 C 303 334, 297 320, 290 320 C 283 320, 278 334, 296 350 Z" fill="url(#seedBlack)" />
-      <path d="M 370 354 C 377 338, 372 324, 365 324 C 358 324, 352 338, 370 354 Z" fill="url(#seedBlack)" />
-    </g>
-
-    <!-- 7. Crisp Rim Light on Left Edge -->
-    <path d="M 256 136 L 88 370" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.45" />
   </g>
 </svg>
