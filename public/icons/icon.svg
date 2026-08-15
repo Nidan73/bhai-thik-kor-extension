@@ -1,107 +1,172 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Background Squircle Gradient -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#161824" />
-      <stop offset="50%" stop-color="#0e1017" />
-      <stop offset="100%" stop-color="#06070a" />
+    <!-- Background Canvas: Deep Midnight Frosted Glass -->
+    <linearGradient id="macOSBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e2235" />
+      <stop offset="40%" stop-color="#121422" />
+      <stop offset="100%" stop-color="#080911" />
     </linearGradient>
 
-    <!-- Outer Emerald Rind Gradient -->
-    <linearGradient id="rindGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#047857" />
-      <stop offset="50%" stop-color="#10B981" />
-      <stop offset="100%" stop-color="#34D399" />
+    <!-- Top Rim Light for Squircle -->
+    <linearGradient id="rimLight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22" />
+      <stop offset="25%" stop-color="#ffffff" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.02" />
     </linearGradient>
 
-    <!-- Inner Crisp White/Lime Rind -->
-    <linearGradient id="innerRindGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <!-- 3D Rind Outer Green (Translucent Frosted Emerald) -->
+    <linearGradient id="rind3DEmerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="45%" stop-color="#10B981" />
+      <stop offset="85%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#6EE7B7" />
+    </linearGradient>
+
+    <!-- 3D Rind Thickness / Depth Extrusion (Darker Emerald Shade) -->
+    <linearGradient id="rindDepth" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#064E3B" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+
+    <!-- Inner Crisp White/Lime Separation Ridge -->
+    <linearGradient id="rindWhiteRidge" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#d1fae5" />
       <stop offset="50%" stop-color="#ffffff" />
-      <stop offset="100%" stop-color="#d1fae5" />
+      <stop offset="100%" stop-color="#a7f3d0" />
     </linearGradient>
 
-    <!-- Watermelon Flesh Gradient (Vibrant Crimson Coral with rich depth) -->
-    <linearGradient id="fleshGrad" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#FF3366" />
-      <stop offset="60%" stop-color="#E11D48" />
-      <stop offset="100%" stop-color="#BE123C" />
+    <!-- 3D Ruby Flesh Front Face (Luminous Glass Gradient) -->
+    <radialGradient id="fleshFront" cx="45%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FF4D6D" />
+      <stop offset="35%" stop-color="#FF1A4B" />
+      <stop offset="75%" stop-color="#E11D48" />
+      <stop offset="100%" stop-color="#9F1239" />
+    </radialGradient>
+
+    <!-- 3D Flesh Thickness / Depth Extrusion (Shadowed Wine Red) -->
+    <linearGradient id="fleshDepth" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9F1239" />
+      <stop offset="50%" stop-color="#881337" />
+      <stop offset="100%" stop-color="#4C0519" />
     </linearGradient>
 
-    <!-- Top Specular Highlight -->
-    <linearGradient id="glossGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35" />
-      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.05" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    <!-- Glass Specular Reflection Highlight -->
+    <linearGradient id="specularGlint" x1="0%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.65" />
+      <stop offset="25%" stop-color="#ffffff" stop-opacity="0.18" />
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0" />
     </linearGradient>
 
-    <!-- AI Magic Spark Gradient -->
-    <linearGradient id="sparkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFBEB" />
-      <stop offset="40%" stop-color="#FDE047" />
-      <stop offset="100%" stop-color="#F59E0B" />
+    <!-- Glass Caustic Underglow -->
+    <linearGradient id="causticGlow" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#FF1A4B" stop-opacity="0.55" />
+      <stop offset="60%" stop-color="#FF1A4B" stop-opacity="0" />
     </linearGradient>
 
-    <!-- Drop Shadow for Slice -->
-    <filter id="sliceShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#FF3366" flood-opacity="0.3" />
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6" />
+    <!-- 3D Seed Gradient (Glossy Obsidian) -->
+    <radialGradient id="seedGrad" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="35%" stop-color="#1e293b" />
+      <stop offset="85%" stop-color="#090d16" />
+      <stop offset="100%" stop-color="#020617" />
+    </radialGradient>
+
+    <!-- AI Prism Spark -->
+    <linearGradient id="sparkPrism" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="30%" stop-color="#FEF08A" />
+      <stop offset="70%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <!-- Heavy Realistic Cast Shadow for the 3D Slice -->
+    <filter id="macOSShadow" x="-30%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="28" stdDeviation="32" flood-color="#000000" flood-opacity="0.75" />
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#FF1A4B" flood-opacity="0.25" />
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.5" />
     </filter>
 
-    <!-- Spark Glow Filter -->
-    <filter id="sparkGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#FDE047" flood-opacity="0.9" />
+    <!-- Floating Spark Glow -->
+    <filter id="sparkGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#FBBF24" flood-opacity="0.9" />
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#F59E0B" flood-opacity="0.5" />
+    </filter>
+
+    <!-- Seed Inset Shadow -->
+    <filter id="seedShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="1" dy="3" stdDeviation="3" flood-color="#4C0519" flood-opacity="0.6" />
     </filter>
   </defs>
 
-  <!-- Base Squircle Container -->
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
-  <rect width="508" height="508" x="2" y="2" rx="126" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2.5" />
+  <!-- ── 1. Squircle Container (Apple macOS continuous curve) ── -->
+  <rect width="512" height="512" rx="116" fill="url(#macOSBg)" />
+  <!-- Ambient Inner Glow on Container -->
+  <circle cx="256" cy="270" r="180" fill="#FF1A4B" opacity="0.08" filter="blur(40px)" />
+  <!-- Squircle Subtle 1px Glass Rim -->
+  <rect width="508" height="508" x="2" y="2" rx="114" fill="none" stroke="url(#rimLight)" stroke-width="2.5" />
 
-  <!-- Center Group -->
-  <g filter="url(#sliceShadow)">
-    <!-- 1. Outer Green Rind Arc -->
-    <path d="M 68 376 C 110 440, 402 440, 444 376 L 256 128 Z" fill="url(#rindGrad)" />
+  <!-- ── 2. The 3D Watermelon Slice (Tilted Isometric Geometry) ── -->
+  <g transform="translate(256, 268) rotate(-14) translate(-256, -256)" filter="url(#macOSShadow)">
 
-    <!-- 2. Inner White Rind Arc -->
-    <path d="M 88 368 C 124 424, 388 424, 424 368 L 256 146 Z" fill="url(#innerRindGrad)" />
+    <!-- A. 3D Extruded Depth Under-Layer (The Side / Bottom Thickness) -->
+    <!-- Rind Bottom Depth -->
+    <path d="M 68 376 C 114 446, 398 446, 444 376 L 452 396 C 404 470, 106 470, 60 396 Z" fill="url(#rindDepth)" />
+    <!-- Side Left Extrusion -->
+    <path d="M 68 376 L 256 120 L 262 136 L 60 396 Z" fill="url(#fleshDepth)" opacity="0.9" />
+    <!-- Side Right Extrusion -->
+    <path d="M 256 120 L 444 376 L 452 396 L 262 136 Z" fill="url(#fleshDepth)" />
 
-    <!-- 3. Red Juicy Flesh -->
-    <path d="M 104 358 C 138 410, 374 410, 408 358 L 256 160 Z" fill="url(#fleshGrad)" />
+    <!-- B. Outer Green Rind Face (Translucent Emerald Arc) -->
+    <path d="M 68 376 C 114 446, 398 446, 444 376 L 256 120 Z" fill="url(#rind3DEmerald)" />
 
-    <!-- 4. Glossy Overlay -->
-    <path d="M 104 358 L 256 160 L 320 240 C 260 270, 180 310, 104 358 Z" fill="url(#glossGrad)" />
+    <!-- C. Crisp White/Lime Transition Ridge -->
+    <path d="M 86 368 C 126 430, 386 430, 426 368 L 256 140 Z" fill="url(#rindWhiteRidge)" />
 
-    <!-- 5. Crisp Black Seeds -->
-    <!-- Top Left -->
-    <path d="M 224 236 C 220 224, 224 214, 229 214 C 234 214, 238 224, 224 236 Z" fill="#0f172a" />
-    <!-- Top Right -->
-    <path d="M 288 236 C 292 224, 288 214, 283 214 C 278 214, 274 224, 288 236 Z" fill="#0f172a" />
-    <!-- Mid Left -->
-    <path d="M 188 296 C 182 284, 186 274, 192 274 C 198 274, 202 284, 188 296 Z" fill="#0f172a" />
-    <!-- Mid Center -->
-    <path d="M 256 288 C 251 276, 256 266, 261 266 C 266 266, 270 276, 256 288 Z" fill="#0f172a" />
-    <!-- Mid Right -->
-    <path d="M 324 296 C 330 284, 326 274, 320 274 C 314 274, 310 284, 324 296 Z" fill="#0f172a" />
-    <!-- Bottom Left -->
-    <path d="M 160 352 C 154 340, 158 330, 164 330 C 170 330, 174 340, 160 352 Z" fill="#0f172a" />
-    <!-- Bottom Mid-Left -->
-    <path d="M 222 350 C 217 338, 222 328, 227 328 C 232 328, 236 338, 222 350 Z" fill="#0f172a" />
-    <!-- Bottom Mid-Right -->
-    <path d="M 290 350 C 295 338, 290 328, 285 328 C 280 328, 276 338, 290 350 Z" fill="#0f172a" />
-    <!-- Bottom Right -->
-    <path d="M 352 352 C 358 340, 354 330, 348 330 C 342 330, 338 340, 352 352 Z" fill="#0f172a" />
+    <!-- D. Main Ruby Glass Flesh Face -->
+    <path d="M 102 358 C 138 414, 374 414, 410 358 L 256 156 Z" fill="url(#fleshFront)" />
+
+    <!-- E. Internal Caustic Light Glow (Bottom red bounce light) -->
+    <path d="M 102 358 C 138 414, 374 414, 410 358 L 256 260 Z" fill="url(#causticGlow)" />
+
+    <!-- F. 3D Floating Seeds (Embedded Obsidian Drops) -->
+    <g filter="url(#seedShadow)">
+      <!-- Top Row -->
+      <path d="M 228 232 C 223 218, 227 206, 233 206 C 239 206, 244 218, 228 232 Z" fill="url(#seedGrad)" />
+      <path d="M 284 232 C 289 218, 285 206, 279 206 C 273 206, 268 218, 284 232 Z" fill="url(#seedGrad)" />
+
+      <!-- Mid Row -->
+      <path d="M 188 290 C 182 276, 187 264, 193 264 C 199 264, 204 276, 188 290 Z" fill="url(#seedGrad)" />
+      <path d="M 256 282 C 250 268, 256 256, 262 256 C 268 256, 272 268, 256 282 Z" fill="url(#seedGrad)" />
+      <path d="M 324 290 C 330 276, 325 264, 319 264 C 313 264, 308 276, 324 290 Z" fill="url(#seedGrad)" />
+
+      <!-- Bottom Row -->
+      <path d="M 154 348 C 148 334, 153 322, 159 322 C 165 322, 170 334, 154 348 Z" fill="url(#seedGrad)" />
+      <path d="M 220 346 C 214 332, 220 320, 226 320 C 232 320, 236 332, 220 346 Z" fill="url(#seedGrad)" />
+      <path d="M 292 346 C 298 332, 292 320, 286 320 C 280 320, 276 332, 292 346 Z" fill="url(#seedGrad)" />
+      <path d="M 358 348 C 364 334, 359 322, 353 322 C 347 322, 342 334, 358 348 Z" fill="url(#seedGrad)" />
+    </g>
+
+    <!-- G. Glass Specular Surface Reflection (Curved Diagonal Sheen) -->
+    <path d="M 102 358 L 256 156 L 315 230 C 255 265, 175 305, 102 358 Z" fill="url(#specularGlint)" />
+
+    <!-- H. Subtle Edge Rim Light on the Left Slice Bevel -->
+    <path d="M 256 156 L 102 358" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.4" />
   </g>
 
-  <!-- 6. AI Magic Spark on the Slice Tip -->
-  <g transform="translate(256, 126)" filter="url(#sparkGlow)">
-    <path d="M 0 -36 Q 0 0 36 0 Q 0 0 0 36 Q 0 0 -36 0 Q 0 0 0 -36 Z" fill="url(#sparkGrad)" />
-    <!-- Core Diamond Flare -->
-    <circle cx="0" cy="0" r="7" fill="#ffffff" />
+  <!-- ── 3. AI Magic Spark (3D Floating Diamond Star) ── -->
+  <g transform="translate(396, 106)" filter="url(#sparkGlow)">
+    <!-- Primary 4-Point Prism Star -->
+    <path d="M 0 -42 Q 0 0 42 0 Q 0 0 0 42 Q 0 0 -42 0 Q 0 0 0 -42 Z" fill="url(#sparkPrism)" />
+    <!-- White Core Diamond Light -->
+    <circle cx="0" cy="0" r="9" fill="#ffffff" />
+    <!-- Subtle Cross Light Rays -->
+    <line x1="-50" y1="0" x2="50" y2="0" stroke="#ffffff" stroke-width="1.5" opacity="0.8" />
+    <line x1="0" y1="-50" x2="0" y2="50" stroke="#ffffff" stroke-width="1.5" opacity="0.8" />
   </g>
 
-  <!-- 7. Ambient Micro-Spark (Top Right) -->
-  <g transform="translate(388, 96) scale(0.45)" opacity="0.95" filter="url(#sparkGlow)">
-    <path d="M 0 -36 Q 0 0 36 0 Q 0 0 0 36 Q 0 0 -36 0 Q 0 0 0 -36 Z" fill="#FDE047" />
+  <!-- Ambient Secondary Spark -->
+  <g transform="translate(444, 172) scale(0.42)" filter="url(#sparkGlow)">
+    <path d="M 0 -42 Q 0 0 42 0 Q 0 0 0 42 Q 0 0 -42 0 Q 0 0 0 -42 Z" fill="url(#sparkPrism)" />
+    <circle cx="0" cy="0" r="8" fill="#ffffff" />
   </g>
 </svg>
