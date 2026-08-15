@@ -16,15 +16,29 @@ describe('mergeSettings', () => {
   });
 
   it('keeps stored values that are valid', () => {
-    const merged = mergeSettings({ floatingButton: false, improveBehavior: 'preview' });
+    const merged = mergeSettings({
+      floatingButton: false,
+      improveBehavior: 'preview',
+      adaptiveStyleEnabled: false,
+      customPersona: 'Senior Go Dev',
+    });
     expect(merged.floatingButton).toBe(false);
     expect(merged.improveBehavior).toBe('preview');
+    expect(merged.adaptiveStyleEnabled).toBe(false);
+    expect(merged.customPersona).toBe('Senior Go Dev');
   });
 
   it('falls back to defaults for individually invalid fields', () => {
-    const merged = mergeSettings({ floatingButton: 'yes', improveBehavior: 'wat' });
+    const merged = mergeSettings({
+      floatingButton: 'yes',
+      improveBehavior: 'wat',
+      adaptiveStyleEnabled: 123,
+      customPersona: 999,
+    });
     expect(merged.floatingButton).toBe(DEFAULT_SETTINGS.floatingButton);
     expect(merged.improveBehavior).toBe(DEFAULT_SETTINGS.improveBehavior);
+    expect(merged.adaptiveStyleEnabled).toBe(DEFAULT_SETTINGS.adaptiveStyleEnabled);
+    expect(merged.customPersona).toBe(DEFAULT_SETTINGS.customPersona);
   });
 
   it('drops non-string entries from disabledHosts', () => {

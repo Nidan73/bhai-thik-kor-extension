@@ -37,6 +37,7 @@ const inputPrompt = $<HTMLTextAreaElement>('input-prompt');
 const charCount = $<HTMLElement>('char-count');
 const btnImprove = $<HTMLButtonElement>('btn-improve');
 const btnGuided = $<HTMLButtonElement>('btn-guided');
+const btnSettings = $<HTMLButtonElement>('btn-settings');
 
 const resultPrompt = $<HTMLElement>('result-prompt');
 const btnCopy = $<HTMLButtonElement>('btn-copy');
@@ -548,6 +549,9 @@ function init() {
   // Button events
   btnImprove.addEventListener('click', handleImprove);
   btnGuided.addEventListener('click', handleGuidedMode);
+  btnSettings.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
   btnCopy.addEventListener('click', handleCopy);
   btnReplace.addEventListener('click', handleReplace);
   btnInsert.addEventListener('click', handleInsert);

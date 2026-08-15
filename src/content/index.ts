@@ -1294,8 +1294,8 @@ function showFloatingButton(target: HTMLElement) {
     return;
   }
 
-  floatingHost.style.left = `${Math.max(8, Math.min(window.innerWidth - 42, rect.right - 44))}px`;
-  floatingHost.style.top = `${Math.max(8, Math.min(window.innerHeight - 42, rect.top + 10))}px`;
+  floatingHost.style.left = `${Math.max(8, Math.min(window.innerWidth - 38, rect.right - 38))}px`;
+  floatingHost.style.top = `${Math.max(8, Math.min(window.innerHeight - 38, rect.top + 4))}px`;
 }
 
 function hideFloatingButton() {

@@ -11,7 +11,8 @@
 import { onMessage } from '@/shared/messages';
 import { ApiClientError, apiGenerate, apiClarify, apiRefine } from '@/shared/api-client';
 import { PROMPT_MIN_CHARS } from '@/shared/constants';
-import { appendHistory, type HistoryEntry } from '@/shared/history';
+import { appendHistory, getHistory, type HistoryEntry } from '@/shared/history';
+import { inferPersonaFromHistory } from '@/shared/persona';
 import { looksLikeShortImageEditCommand } from '@/shared/image-command';
 import { getSettings, setSetting } from '@/shared/settings';
 import type {
@@ -155,6 +156,22 @@ onMessage((message: Message, sender, sendResponse) => {
 
 // ─── Handlers ───────────────────────────────────────────────────────────────────
 
+async function resolveActivePersona(): Promise<string | undefined> {
+  try {
+    const settings = await getSettings();
+    if (!settings.adaptiveStyleEnabled) return undefined;
+    if (settings.customPersona.trim()) return settings.customPersona.trim();
+    if (settings.historyEnabled) {
+      const history = await getHistory();
+      const inferred = inferPersonaFromHistory(history);
+      return inferred?.summary;
+    }
+  } catch {
+    // Non-critical, fallback to default
+  }
+  return undefined;
+}
+
 async function handleImproveFromMessage(
   text: string,
   source: ImproveSource,
@@ -174,9 +191,11 @@ async function handleImproveFromMessage(
   }
 
   try {
+    const persona = await resolveActivePersona();
     const { result, rateLimit } = await apiGenerate(
       trimmed,
       buildAttachmentClarifications(trimmed, attachmentContext),
+      { persona },
     );
     sendResponse({
       type: 'IMPROVE_RESPONSE',
@@ -211,9 +230,11 @@ async function handleImproveRequest(
   } satisfies Message).catch(() => undefined);
 
   try {
+    const persona = await resolveActivePersona();
     const { result, rateLimit } = await apiGenerate(
       trimmed,
       buildAttachmentClarifications(trimmed, attachmentContext),
+      { persona },
     );
 
     chrome.tabs.sendMessage(tabId, {
@@ -252,7 +273,8 @@ async function handleGenerateWithClarifications(
   const trimmed = text.trim();
 
   try {
-    const { result, rateLimit } = await apiGenerate(trimmed, clarifications);
+    const persona = await resolveActivePersona();
+    const { result, rateLimit } = await apiGenerate(trimmed, clarifications, { persona });
     sendResponse({
       type: 'IMPROVE_RESPONSE',
       payload: { result, rateLimit, originalText: trimmed, source: 'popup' },

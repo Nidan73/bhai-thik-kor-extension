@@ -4,6 +4,7 @@ import {
   getDomainHint,
   getOutputWordBudget,
   looksStructured,
+  prepareGenerateRequest,
 } from '../src/shared/prompt-quality';
 import { PROMPT_MAX_CHARS } from '../src/shared/constants';
 
@@ -73,3 +74,15 @@ describe('getDomainHint', () => {
     expect(getDomainHint('hello there friend')).toMatch(/Choose the expert role/);
   });
 });
+
+describe('prepareGenerateRequest', () => {
+  it('appends quality clarifications and preserves persona profile', () => {
+    const { clarifications } = prepareGenerateRequest('write a python script', [], {
+      persona: 'Role: Senior Dev | Stack: Python, Django | Tone: direct',
+    });
+    expect(clarifications).toHaveLength(4);
+    const domainClarification = clarifications.find(c => c.question === 'Domain-specific quality hints');
+    expect(domainClarification?.answer).toContain('User style profile: Role: Senior Dev | Stack: Python, Django | Tone: direct');
+  });
+});
+

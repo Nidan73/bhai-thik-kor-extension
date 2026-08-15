@@ -1,6 +1,6 @@
 {
   "name": "bhai-thik-kor-extension",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rimraf dist",
-    "package": "npm run build && rimraf bhai-thik-kor-1.0.0.zip && cd dist && bsdtar -a -cf ../bhai-thik-kor-1.0.0.zip *"
+    "package": "npm run build && rimraf bhai-thik-kor-1.0.6.zip && cd dist && bsdtar -a -cf ../bhai-thik-kor-1.0.6.zip *"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

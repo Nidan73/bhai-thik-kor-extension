@@ -10,6 +10,7 @@ const TAIL_CHARS = PROMPT_MAX_CHARS - HEAD_CHARS - TRIM_NOTICE.length - 4;
 export function prepareGenerateRequest(
   prompt: string,
   clarifications: Clarification[] = [],
+  options?: { persona?: string },
 ): { prompt: string; clarifications: Clarification[] } {
   const trimmed = prompt.trim();
   const { prompt: budgetedPrompt, wasTrimmed } = fitPromptToBudget(trimmed);
@@ -21,6 +22,7 @@ export function prepareGenerateRequest(
       ...buildQualityClarifications(budgetedPrompt, {
         hasUserClarifications: clarifications.length > 0,
         wasTrimmed,
+        persona: options?.persona,
       }),
     ],
   };
@@ -41,7 +43,7 @@ export function fitPromptToBudget(prompt: string): { prompt: string; wasTrimmed:
 
 function buildQualityClarifications(
   prompt: string,
-  options: { hasUserClarifications: boolean; wasTrimmed: boolean },
+  options: { hasUserClarifications: boolean; wasTrimmed: boolean; persona?: string },
 ): Clarification[] {
   const wordBudget = getOutputWordBudget(prompt);
   const structured = looksStructured(prompt);
@@ -66,6 +68,7 @@ function buildQualityClarifications(
       question: 'Domain-specific quality hints',
       answer: [
         domainHint,
+        options.persona ? `User style profile: ${options.persona}. Adapt conventions, terminology, and tone accordingly.` : '',
         options.hasUserClarifications ? 'Respect the user-provided clarifications above these defaults.' : '',
         options.wasTrimmed ? 'The source was clipped for request size; avoid inventing details not supported by the visible text.' : '',
       ].filter(Boolean).join(' '),

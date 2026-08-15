@@ -18,6 +18,7 @@ import {
   getHistory,
   type HistoryEntry,
 } from '@/shared/history';
+import { inferPersonaFromHistory } from '@/shared/persona';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -29,6 +30,11 @@ const optHostForm = $<HTMLFormElement>('opt-host-form');
 const optHostInput = $<HTMLInputElement>('opt-host-input');
 const optHostList = $<HTMLUListElement>('opt-host-list');
 const optHostEmpty = $<HTMLParagraphElement>('opt-host-empty');
+const optAdaptiveStyle = $<HTMLInputElement>('opt-adaptive-style');
+const optPersonaPanel = $<HTMLDivElement>('opt-persona-panel');
+const optPersonaDetected = $<HTMLDivElement>('opt-persona-detected');
+const optPersonaForm = $<HTMLFormElement>('opt-persona-form');
+const optPersonaInput = $<HTMLInputElement>('opt-persona-input');
 const optHistory = $<HTMLInputElement>('opt-history');
 const optHistoryPanel = $<HTMLDivElement>('opt-history-panel');
 const optHistoryList = $<HTMLUListElement>('opt-history-list');
@@ -156,6 +162,44 @@ function renderHosts() {
   }
 }
 
+// ─── Adaptive Style (Persona) ───────────────────────────────────────────────────
+
+optAdaptiveStyle.addEventListener('change', async () => {
+  const enabled = optAdaptiveStyle.checked;
+  if (await write('adaptiveStyleEnabled', enabled)) {
+    optPersonaPanel.classList.toggle('hidden', !enabled);
+    await renderPersona();
+  }
+});
+
+optPersonaForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!ready) return;
+
+  const value = optPersonaInput.value.trim();
+  if (await write('customPersona', value)) {
+    showStatus(value ? 'Custom style saved.' : 'Reset to auto-detected style.', 'success');
+    await renderPersona();
+  }
+});
+
+async function renderPersona() {
+  optPersonaInput.value = settings.customPersona || '';
+
+  if (settings.customPersona.trim()) {
+    optPersonaDetected.textContent = `Custom: ${settings.customPersona.trim()}`;
+    return;
+  }
+
+  if (settings.historyEnabled) {
+    const entries = await getHistory();
+    const inferred = inferPersonaFromHistory(entries);
+    optPersonaDetected.textContent = inferred ? inferred.summary : 'General · Need at least 2 history prompts to infer patterns';
+  } else {
+    optPersonaDetected.textContent = 'General · Turn on history below to enable auto-detection';
+  }
+}
+
 // ─── History ────────────────────────────────────────────────────────────────────
 
 optHistory.addEventListener('change', async () => {
@@ -168,11 +212,13 @@ optHistory.addEventListener('change', async () => {
 
   optHistoryPanel.classList.toggle('hidden', !enabled);
   await renderHistory();
+  await renderPersona();
 });
 
 optHistoryClear.addEventListener('click', async () => {
   await clearHistory();
   await renderHistory();
+  await renderPersona();
   showStatus('History cleared.', 'success');
 });
 
@@ -227,6 +273,7 @@ function createHistoryItem(entry: HistoryEntry): HTMLLIElement {
   remove.addEventListener('click', async () => {
     await deleteHistoryEntry(entry.id);
     await renderHistory();
+    await renderPersona();
   });
 
   actions.append(copy, remove);
@@ -240,9 +287,12 @@ function render() {
   optFloating.checked = settings.floatingButton;
   optBehaviorReplace.checked = settings.improveBehavior === 'replace';
   optBehaviorPreview.checked = settings.improveBehavior === 'preview';
+  optAdaptiveStyle.checked = settings.adaptiveStyleEnabled;
+  optPersonaPanel.classList.toggle('hidden', !settings.adaptiveStyleEnabled);
   optHistory.checked = settings.historyEnabled;
   optHistoryPanel.classList.toggle('hidden', !settings.historyEnabled);
   renderHosts();
+  void renderPersona();
 }
 
 async function init() {

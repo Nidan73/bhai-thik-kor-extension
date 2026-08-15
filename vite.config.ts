@@ -10,6 +10,7 @@ export default defineConfig({
     // Both passes write into dist/, so neither may clear it. `npm run build`
     // cleans first instead.
     emptyOutDir: false,
+    modulePreload: false,
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),

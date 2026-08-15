@@ -8,6 +8,8 @@ export type Settings = {
   improveBehavior: ImproveBehavior;
   historyEnabled: boolean;
   seenWelcome: boolean;
+  adaptiveStyleEnabled: boolean;
+  customPersona: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -16,9 +18,12 @@ export const DEFAULT_SETTINGS: Settings = {
   improveBehavior: 'replace',
   historyEnabled: false,
   seenWelcome: false,
+  adaptiveStyleEnabled: true,
+  customPersona: '',
 };
 
 export const MAX_DISABLED_HOSTS = 100;
+export const MAX_CUSTOM_PERSONA_CHARS = 200;
 
 const SETTINGS_KEY = 'settings';
 
@@ -51,6 +56,14 @@ export function mergeSettings(stored: unknown): Settings {
       typeof raw.historyEnabled === 'boolean' ? raw.historyEnabled : DEFAULT_SETTINGS.historyEnabled,
     seenWelcome:
       typeof raw.seenWelcome === 'boolean' ? raw.seenWelcome : DEFAULT_SETTINGS.seenWelcome,
+    adaptiveStyleEnabled:
+      typeof raw.adaptiveStyleEnabled === 'boolean'
+        ? raw.adaptiveStyleEnabled
+        : DEFAULT_SETTINGS.adaptiveStyleEnabled,
+    customPersona:
+      typeof raw.customPersona === 'string'
+        ? raw.customPersona.slice(0, MAX_CUSTOM_PERSONA_CHARS)
+        : DEFAULT_SETTINGS.customPersona,
   };
 }
 

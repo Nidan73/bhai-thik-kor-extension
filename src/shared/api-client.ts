@@ -172,8 +172,9 @@ async function consumeTextStream(response: Response): Promise<string> {
 export async function apiGenerate(
   prompt: string,
   clarifications: Clarification[] = [],
+  options?: { persona?: string },
 ): Promise<{ result: GenerateResult; rateLimit?: RateLimitInfo }> {
-  const request = prepareGenerateRequest(prompt, clarifications);
+  const request = prepareGenerateRequest(prompt, clarifications, options);
 
   const response = await fetchWithRetry(ENDPOINTS.generate, {
     method: 'POST',

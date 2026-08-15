@@ -55,6 +55,28 @@
       <p class="empty" id="opt-host-empty">No sites disabled.</p>
     </section>
 
+    <section class="card" id="persona">
+      <h2>Adaptive Style (Prompt DNA)</h2>
+      <label class="row">
+        <span>
+          <strong>Enable adaptive style</strong>
+          <small>Tailor generated prompts to your domain, tech stack, and preferred tone.</small>
+        </span>
+        <input type="checkbox" id="opt-adaptive-style">
+      </label>
+      <div id="opt-persona-panel" class="hidden">
+        <div class="persona-detected" id="opt-persona-detected-box">
+          <small class="hint">Auto-detected profile:</small>
+          <div class="persona-badge" id="opt-persona-detected">General · No history patterns yet</div>
+        </div>
+        <form class="add-row" id="opt-persona-form">
+          <input type="text" id="opt-persona-input" placeholder="Custom style (e.g. Senior Full-Stack, TypeScript, direct code)" maxlength="200" autocomplete="off">
+          <button type="submit" class="btn">Save</button>
+        </form>
+        <p class="hint">Set a custom profile or leave blank to automatically adapt from your local history.</p>
+      </div>
+    </section>
+
     <section class="card" id="history">
       <h2>History</h2>
       <label class="row">
