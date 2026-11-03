@@ -78,16 +78,21 @@ Normal + Guided + Tweak    capture, guards, in-page UI,      context menu, comma
 
 | Endpoint | Method | Request | Response | Rate limit |
 |----------|--------|---------|----------|------------|
-| `/api/generate` | POST | `{ prompt, clarifications: {question,answer}[] }` (max 10, prompt ≤ 4000 chars) | **text stream** whose full body is the JSON `{ optimized_prompt, routing: { open_source, freemium, premium } }` | 50/IP/day |
-| `/api/clarify` | POST | `{ prompt }` | plain JSON array of `{ id, question, options[≤4] }` | 3/IP/min |
-| `/api/refine` | POST | `{ currentPrompt (≤6000), instruction (≤500) }` | text stream of the refined prompt | 5/IP/min |
+| `/api/generate` | POST | `{ prompt, clarifications: {question,answer}[] }` (max 10, prompt ≤ 4000 chars) | **text stream** whose full body is the JSON `{ optimized_prompt, routing: { open_source, freemium, premium } }` | 50/day |
+| `/api/clarify` | POST | `{ prompt }` | plain JSON array of exactly 3 `{ id, question, options[2 to 4] }` | 3/min and 60/day |
+| `/api/refine` | POST | `{ currentPrompt (≤6000), instruction (≤500) }` | text stream of the refined prompt | 5/min and 100/day |
 | `/api/health` | GET | — | `{ status, checks }` | — |
-| `/api/extract` | POST | `{ url }` | URL context (**unused by the extension**) | 5/IP/min |
+| `/api/extract` | POST | `{ url }` | URL context (**unused by the extension**) | 5/min and 60/day |
 
 `generate` and `refine` stream text, so the client reads the body to
 completion and parses at the end (`consumeTextStream`). Rate-limit state comes from
 `X-RateLimit-{Limit,Remaining,Reset}`; 429 also carries `Retry-After`. Errors are
 `{ error, retryAfter? }` with 429 (limited) / 503 (all providers busy) / 400 (validation).
+Limits are per client: an IPv4 address, or an IPv6 /64 network. A daily-cap 429 says
+"Daily limit reached for this feature. Please try again tomorrow." and its `retryAfter` can be
+hours, so show the server's `error` text rather than a seconds countdown. The backend answers
+499 when the client disconnects mid-request; the extension never sees it because it has
+already aborted.
 
 Mirror limit constants in `src/shared/constants.ts` when the backend schema changes.
 
@@ -114,6 +119,23 @@ deliberate check against the backend cap.
   that as "Failed to parse AI response" — this is expected, not a client bug.
 - `API_TIMEOUT_MS` is 45s while the backend's `maxDuration` is 60s. A request walking deep into
   the provider fallback chain can be abandoned client-side before the server gives up.
+
+### Backend behaviour worth knowing (as of 2026-11-04, backend v1.2.1)
+
+- Clarify always returns exactly 3 questions with 2 to 4 options each, or a 503 if no
+  provider produced 3 usable questions.
+- Generated prompts use "Label:" sections separated by blank lines, end with an
+  "Assumptions:" section for defaults the model chose, never invent facts about the user,
+  and never pin stack versions (they ask for the latest stable version instead). Image
+  prompts are one paragraph starting with "Create an image:".
+- `prompt-quality.ts` also asks for assumption handling, which now overlaps with the
+  backend's own Assumptions rule. Check for duplicated guidance before adding more quality
+  clarifications.
+- The backend tells the model to omit the "(open-weight)" marker from `model_name`, and the
+  web app strips it; the extension reads the raw stream, so strip it client-side if it ever
+  shows up.
+- Provider order changed (strongest Groq and Gemini models first, free OpenRouter models only
+  as fallback, retired models dropped automatically). No client-visible change.
 
 ## User-facing flows
 

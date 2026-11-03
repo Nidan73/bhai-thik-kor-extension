@@ -68,4 +68,4 @@ This extension calls the existing Bhai Thik Kor API:
 | `/api/clarify` | Guided Mode questions |
 | `/api/refine` | Tweak/refine existing prompt |
 
-Rate limits: 50 generates/day, 3 clarifies/minute, 5 refines/minute.
+Rate limits (per client: IPv4 address or IPv6 /64 network): generate 50/day; clarify 3/minute and 60/day; refine 5/minute and 100/day.
