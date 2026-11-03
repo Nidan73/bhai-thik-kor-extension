@@ -1,6 +1,6 @@
-# Bhai Thik Kor — Browser Extension
+# Bhai Thik Kor: Browser Extension
 
-Turn rough ideas into expert AI prompts — wherever you write.
+Turn rough ideas into expert AI prompts, wherever you write.
 
 A Grammarly-like Chrome extension that works with the [Bhai Thik Kor](https://bhaithikkor.vercel.app) backend. No API keys in the browser. No keystroke logging. Privacy first.
 
@@ -41,11 +41,11 @@ All API calls route through the background service worker → `bhaithikkor.verce
 
 ```bash
 npm install
-npm run dev      # Watch mode — rebuilds on file changes
+npm run dev      # Watch mode: rebuilds on file changes
 npm run build    # Production build with type checking
 ```
 
-Load the `dist/` folder as an unpacked extension in `chrome://extensions` or `brave://extensions`.
+Load the `dist/` folder as an unpacked extension in `chrome://extensions` or `brave://extensions`. The extension is not on the Chrome Web Store yet.
 
 ## Privacy
 
